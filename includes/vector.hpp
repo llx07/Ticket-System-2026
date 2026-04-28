@@ -288,6 +288,23 @@ public:
         }
         return *this;
     }
+
+    friend bool operator==(const vector& lhs, const vector& rhs) {
+        if (lhs.size_ != rhs.size_) {
+            return false;
+        }
+        for (size_t i = 0; i < lhs.size_; ++i) {
+            if (!(lhs.data_[i] == rhs.data_[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    friend bool operator!=(const vector& lhs, const vector& rhs) {
+        return !(lhs == rhs);
+    }
+
     /**
      * assigns specified element with bounds checking
      * throw index_out_of_bound if pos is not in [0, size)

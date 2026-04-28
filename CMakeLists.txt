@@ -15,3 +15,28 @@ add_executable(test_bpt
 target_include_directories(test_bpt PRIVATE
     ${PROJECT_SOURCE_DIR}/includes
 )
+
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.4
+)
+FetchContent_MakeAvailable(Catch2)
+
+add_executable(b_plus_tree_tests
+    tests/b_plus_tree_test.cpp
+)
+
+target_include_directories(b_plus_tree_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/includes
+)
+
+target_link_libraries(b_plus_tree_tests PRIVATE
+    Catch2::Catch2WithMain
+)
+
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+include(CTest)
+include(Catch)
+catch_discover_tests(b_plus_tree_tests)

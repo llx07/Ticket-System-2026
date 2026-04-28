@@ -312,8 +312,12 @@ class BPlusTree {
         while (idx) {
             LeafPage page = read_data_page<LeafPage>(idx);
             for (int i = 0; i < page.size; ++i) {
-                if (page.data[i].first < key) continue;
-                if (key < page.data[i].first) return result;
+                if (page.data[i].first < key) {
+                    continue;
+                }
+                if (key < page.data[i].first) {
+                    return result;
+                }
                 result.push_back(page.data[i].second);
             }
             idx = page.next;
