@@ -11,3 +11,4 @@ Diagnostics:
     Remove:
       - modernize-use-trailing-return-type
       - modernize-avoid-c-arrays
+      - bugprone-easily-swappable-parameters
