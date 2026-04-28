@@ -1,0 +1,13 @@
+CompileFlags:
+  CompilationDatabase: build
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      - google-explicit-constructor
+      - bugprone-*
+      - performance-*
+      - modernize-*
+    Remove:
+      - modernize-use-trailing-return-type
+      - modernize-avoid-c-arrays
