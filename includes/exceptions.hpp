@@ -1,0 +1,36 @@
+#ifndef SJTU_EXCEPTIONS_HPP
+#define SJTU_EXCEPTIONS_HPP
+
+#include <string>
+
+namespace sjtu {
+
+class exception {
+   protected:
+    const std::string variant = "";
+    std::string detail = "";
+
+   public:
+    exception() = default;
+    exception(const exception &ec) = default;
+    virtual std::string what() { return variant + " " + detail; }
+};
+
+class index_out_of_bound : public exception {
+    /* __________________________ */
+};
+
+class runtime_error : public exception {
+    /* __________________________ */
+};
+
+class invalid_iterator : public exception {
+    /* __________________________ */
+};
+
+class container_is_empty : public exception {
+    /* __________________________ */
+};
+}  // namespace sjtu
+
+#endif
