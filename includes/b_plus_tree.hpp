@@ -130,18 +130,19 @@ class BPlusTree {
             write_data_page(idx, page);
         }
     };
-    void insert_internal(int idx, const KeyValuePair &kv_pair, int L, int R) {
+    void insert_internal(int idx, const KeyValuePair &kv_pair, int left_idx,
+                         int right_idx) {
         if (!idx) {
             InternalPage root_page;
             metadata.root = new_free_page();
             root_page.size = 1;
             root_page.parent = 0;
-            root_page.children[0] = L;
-            root_page.children[1] = R;
+            root_page.children[0] = left_idx;
+            root_page.children[1] = right_idx;
             root_page.data[0] = kv_pair;
 
-            set_parent(L, metadata.root);
-            set_parent(R, metadata.root);
+            set_parent(left_idx, metadata.root);
+            set_parent(right_idx, metadata.root);
             write_data_page(metadata.root, root_page);
             return;
         }
@@ -152,8 +153,8 @@ class BPlusTree {
             for (int j = page.size - 1; j > i; j--) {
                 page.children[j + 1] = page.children[j];
             }
-            page.children[i] = L;
-            page.children[i + 1] = R;
+            page.children[i] = left_idx;
+            page.children[i + 1] = right_idx;
             write_data_page(idx, page);
         } else {
             KeyValuePair temp_data[M + 1];
@@ -169,8 +170,8 @@ class BPlusTree {
             for (int i = M; i > pos; i--) {
                 temp_children[i + 1] = temp_children[i];
             }
-            temp_children[pos] = L;
-            temp_children[pos + 1] = R;
+            temp_children[pos] = left_idx;
+            temp_children[pos + 1] = right_idx;
 
             int new_idx = new_free_page();
             InternalPage new_page;
@@ -195,7 +196,7 @@ class BPlusTree {
 
             write_data_page(idx, page);
             write_data_page(new_idx, new_page);
-            insert_internal(page.parent, new_page.data[0], idx, new_idx);
+            insert_internal(page.parent, temp_data[page.size], idx, new_idx);
         }
     }
 
@@ -289,5 +290,34 @@ class BPlusTree {
     void erase(const Key &key, const T &value);
 
     // find all entries with the given key, sorted by values
-    sjtu::vector<T> find_all(const Key &key);
+    sjtu::vector<T> find_all(const Key &key) {
+        sjtu::vector<T> result;
+        if (!metadata.root) {
+            return result;
+        }
+
+        int idx = metadata.root;
+        while (!is_leaf_page(idx)) {
+            InternalPage page = read_data_page<InternalPage>(idx);
+            int child = page.size;
+            for (int i = 0; i < page.size; ++i) {
+                if (!(page.data[i].first < key)) {
+                    child = i;
+                    break;
+                }
+            }
+            idx = page.children[child];
+        }
+
+        while (idx) {
+            LeafPage page = read_data_page<LeafPage>(idx);
+            for (int i = 0; i < page.size; ++i) {
+                if (page.data[i].first < key) continue;
+                if (key < page.data[i].first) return result;
+                result.push_back(page.data[i].second);
+            }
+            idx = page.next;
+        }
+        return result;
+    }
 };
