@@ -52,21 +52,14 @@ class BPlusTree {
     // return the index of x
     template <class U>
     int insert_val(U arr[], int &len, const U &x) {
-        ++len;
-        for (int i = 0; i < len; i++) {
-            if (i == len - 1) {
-                arr[i] = x;
-                return i;
-            }
-            if (x < arr[i]) {
-                for (int j = len - 2; j >= i; j--) {
-                    arr[j + 1] = arr[j];
-                }
-                arr[i] = x;
-                return i;
-            }
+        int pos = len;
+        while (pos > 0 && x < arr[pos - 1]) {
+            arr[pos] = arr[pos - 1];
+            --pos;
         }
-        return -1;
+        arr[pos] = x;
+        ++len;
+        return pos;
     }
 
     void read_metadata() {
@@ -77,7 +70,7 @@ class BPlusTree {
         file.seekp(0);
         file.write(reinterpret_cast<const char *>(&metadata), sizeof(metadata));
     }
-    int get_addr(int idx) { return (idx - 1) * PAGE_SIZE + sizeof(MetaData); }
+    int get_addr(long idx) { return (idx - 1) * PAGE_SIZE + sizeof(MetaData); }
 
     // obtain an unused idx for R/W
     int new_free_page() {
@@ -117,6 +110,22 @@ class BPlusTree {
     void write_data_page(int idx, const U &page) {
         file.seekp(get_addr(idx));
         file.write(reinterpret_cast<const char *>(&page), sizeof(U));
+    }
+
+    int get_leaf_idx(const KeyValuePair &kv_pair) {
+        int idx = metadata.root;
+        while (!is_leaf_page(idx)) {
+            InternalPage cur_page = read_data_page<InternalPage>(idx);
+            int child = cur_page.size;
+            for (int i = 0; i < cur_page.size; ++i) {
+                if (kv_pair < cur_page.data[i]) {
+                    child = i;
+                    break;
+                }
+            }
+            idx = cur_page.children[child];
+        }
+        return idx;
     }
 
     void set_parent(int idx, int p) {
@@ -236,28 +245,20 @@ class BPlusTree {
             write_data_page(metadata.root, page);
             return;
         }
-        int idx = metadata.root;
-        while (!is_leaf_page(idx)) {
-            InternalPage cur_page = read_data_page<InternalPage>(idx);
-            for (int i = 0; i < cur_page.size; i++) {
-                if (kv_pair < cur_page.data[i]) {
-                    idx = cur_page.children[i];
-                    break;
-                }
-
-                if (i == cur_page.size - 1) {
-                    idx = cur_page.children[i + 1];
-                    break;
-                }
-            }
-        }
-
+        int idx = get_leaf_idx(kv_pair);
         LeafPage leaf_page = read_data_page<LeafPage>(idx);
         if (leaf_page.size < L) {
             insert_val(leaf_page.data, leaf_page.size, kv_pair);
             write_data_page(idx, leaf_page);
             return;
         }
+        KeyValuePair temp_data[L + 1];
+        for (int i = 0; i < L; ++i) {
+            temp_data[i] = leaf_page.data[i];
+        }
+
+        int len = L;
+        insert_val(temp_data, len, kv_pair);
 
         LeafPage new_page;
         int new_idx = new_free_page();
@@ -265,22 +266,13 @@ class BPlusTree {
         new_page.next = leaf_page.next;
         leaf_page.next = new_idx;
         new_page.size = (L + 1) / 2;
-        bool used_kv_pair = false;
-        for (int left = new_page.size, i = leaf_page.size - 1;
-             i >= 0 && left;) {
-            if (!used_kv_pair && leaf_page.data[i] < kv_pair) {
-                new_page.data[--left] = kv_pair;
-                used_kv_pair = true;
-            } else {
-                new_page.data[--left] = leaf_page.data[i--];
-            }
+        leaf_page.size = (L + 1) - new_page.size;
+        for (int i = 0; i < leaf_page.size; ++i) {
+            leaf_page.data[i] = temp_data[i];
         }
-        leaf_page.size = L + 1 - new_page.size;
-        if (!used_kv_pair) {
-            --leaf_page.size;
-            insert_val(leaf_page.data, leaf_page.size, kv_pair);
+        for (int i = 0; i < new_page.size; ++i) {
+            new_page.data[i] = temp_data[leaf_page.size + i];
         }
-
         write_data_page(idx, leaf_page);
         write_data_page(new_idx, new_page);
         insert_internal(leaf_page.parent, new_page.data[0], idx, new_idx);
