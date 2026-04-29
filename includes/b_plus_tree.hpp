@@ -182,13 +182,16 @@ class BPlusTree {
                 break;
             }
             InternalPage cur_page = read_internal_after_type(is_leaf);
-            int child = cur_page.size;
-            for (int i = 0; i < cur_page.size; i++) {
-                if (kv_pair < cur_page.data[i]) {
-                    child = i;
-                    break;
+            int left = 0, right = cur_page.size;
+            while (left < right) {
+                int mid = (left + right) / 2;
+                if (kv_pair < cur_page.data[mid]) {
+                    right = mid;
+                } else {
+                    left = mid + 1;
                 }
             }
+            int child = left;
             path[path_size++] = {idx, child};
             idx = cur_page.children[child];
         }
@@ -595,13 +598,16 @@ class BPlusTree {
                 break;
             }
             InternalPage page = read_internal_after_type(is_leaf);
-            int child = page.size;
-            for (int i = 0; i < page.size; i++) {
-                if (!(page.data[i].first < key)) {
-                    child = i;
-                    break;
+            int left = 0, right = page.size;
+            while (left < right) {
+                int mid = (left + right) / 2;
+                if (page.data[mid].first < key) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
                 }
             }
+            int child = left;
             idx = page.children[child];
         }
 
