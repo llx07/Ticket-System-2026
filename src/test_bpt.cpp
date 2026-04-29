@@ -54,6 +54,11 @@ int main() {
                 }
                 std::cout << '\n';
             }
+        } else if (op == "erase") {
+            S s = read();
+            int v;
+            std::cin >> v;
+            bpt.erase(s, v);
         }
     }
     return 0;
