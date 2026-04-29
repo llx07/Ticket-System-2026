@@ -36,7 +36,20 @@ target_link_libraries(b_plus_tree_tests PRIVATE
     Catch2::Catch2WithMain
 )
 
+add_executable(list_tests
+    tests/list_test.cpp
+)
+
+target_include_directories(list_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/includes
+)
+
+target_link_libraries(list_tests PRIVATE
+    Catch2::Catch2WithMain
+)
+
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
 catch_discover_tests(b_plus_tree_tests)
+catch_discover_tests(list_tests)
