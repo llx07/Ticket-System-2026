@@ -60,14 +60,46 @@ class BPlusTree {
     // return the index of x
     template <class U>
     int insert_val(U arr[], int &len, const U &x) {
-        int pos = len;
-        while (pos > 0 && x < arr[pos - 1]) {
-            arr[pos] = arr[pos - 1];
-            --pos;
+        int left = 0, right = len;
+        while (left < right) {
+            int mid = (left + right) / 2;
+            if (x < arr[mid]) {
+                right = mid;
+            } else {
+                left = mid + 1;
+            }
         }
+        int pos = left;
+        for (int i = len; i > pos; --i) {
+            arr[i] = arr[i - 1];
+        }
+
         arr[pos] = x;
         ++len;
         return pos;
+    }
+
+    // arr must be sorted!
+    template <class U>
+    bool erase_val(U arr[], int &len, const U &x) {
+        int left = 0, right = len;
+        while (left < right) {
+            int mid = (left + right) / 2;
+            if (arr[mid] < x) {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+        int pos = left;
+        if (pos == len || x < arr[pos]) {
+            return false;
+        }
+        for (int i = pos + 1; i < len; ++i) {
+            arr[i - 1] = arr[i];
+        }
+        --len;
+        return true;
     }
 
     template <class U>
@@ -78,22 +110,6 @@ class BPlusTree {
             }
         }
         return -1;
-    }
-
-    template <class U>
-    bool erase_val(U arr[], int &len, const U &x) {
-        int pos = 0;
-        while (pos < len && arr[pos] < x) {
-            ++pos;
-        }
-        if (pos == len || x < arr[pos]) {
-            return false;
-        }
-        for (int i = pos + 1; i < len; ++i) {
-            arr[i - 1] = arr[i];
-        }
-        --len;
-        return true;
     }
 
     void read_metadata() {
