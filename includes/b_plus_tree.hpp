@@ -5,6 +5,8 @@
 #include <fstream>
 #include <string>
 
+#include "list.hpp"
+#include "unordered_map.hpp"
 #include "vector.hpp"
 
 template <class Key, class T>
@@ -57,6 +59,99 @@ class BPlusTree {
     static_assert(L >= 3);
 
     std::fstream file;
+    std::streamoff file_size;
+
+    static constexpr int CACHE_SIZE = 4096;
+
+    struct CachePage {
+        int idx{0};
+        bool dirty{0};
+        char data[PAGE_SIZE];
+    };
+    CachePage caches[CACHE_SIZE];
+    sjtu::list<int> lru;
+    sjtu::unordered_map<int, int> slot;
+    sjtu::unordered_map<int, sjtu::list<int>::iterator> pos;
+
+    int load_page(int idx) {
+        auto it = slot.find(idx);
+        if (it != slot.end()) {
+            int s = it->second;
+            lru.splice(lru.begin(), lru, pos[idx]);
+            pos[idx] = lru.begin();
+            return s;
+        }
+
+        int s;
+        if (lru.size() < CACHE_SIZE) {
+            s = lru.size();
+        } else {
+            int victim = lru.back();
+            lru.pop_back();
+
+            s = slot[victim];
+            if (caches[s].dirty) {
+                file.seekp(get_addr(caches[s].idx));
+                file.write(caches[s].data, PAGE_SIZE);
+                if(get_addr(caches[s].idx) + PAGE_SIZE > file_size){
+                    file_size = get_addr(caches[s].idx) + PAGE_SIZE;
+                }
+            }
+
+            slot.erase(victim);
+            pos.erase(victim);
+        }
+
+        caches[s].idx = idx;
+        caches[s].dirty = false;
+        for (int i = 0; i < PAGE_SIZE; i++) {
+            caches[s].data[i] = 0;
+        }
+
+        if(get_addr(idx) + PAGE_SIZE <=  file_size){
+            file.seekg(get_addr(idx));
+            file.read(caches[s].data, PAGE_SIZE);
+        }
+
+        lru.push_front(idx);
+        slot[idx] = s;
+        pos[idx] = lru.begin();
+
+        return s;
+    }
+
+    int get_addr(long idx) { return (idx - 1) * PAGE_SIZE + sizeof(MetaData); }
+
+    // obtain an unused idx for R/W
+    int new_free_page() {
+        if (metadata.free_head) {
+            int s = load_page(metadata.free_head);
+            int idx = metadata.free_head;
+            metadata.free_head = *reinterpret_cast<int *>(caches[s].data);
+            return idx;
+        } else {
+            return ++metadata.page_used;
+        }
+    };
+    // mark idx as an unused page
+    void erase_page(int idx) {
+        int s = load_page(idx);
+        caches[s].dirty = true;
+        *reinterpret_cast<int *>(caches[s].data) = metadata.free_head;
+        metadata.free_head = idx;
+    }
+
+    template <class U>
+    U read_page(int idx) {
+        int s = load_page(idx);
+        return *reinterpret_cast<U *>(caches[s].data);
+    }
+    template <class U>
+    void write_page(int idx, const U &page) {
+        int s = load_page(idx);
+        caches[s].dirty = true;
+        *reinterpret_cast<U *>(caches[s].data) = page;
+    }
 
     template <class U>
     void move_right(U arr[], int first, int last) {
@@ -139,57 +234,13 @@ class BPlusTree {
         file.seekp(0);
         file.write(reinterpret_cast<const char *>(&metadata), sizeof(metadata));
     }
-    int get_addr(long idx) { return (idx - 1) * PAGE_SIZE + sizeof(MetaData); }
-
-    // obtain an unused idx for R/W
-    int new_free_page() {
-        if (metadata.free_head) {
-            int idx = metadata.free_head;
-            file.seekg(get_addr(metadata.free_head));
-            file.read(reinterpret_cast<char *>(&metadata.free_head),
-                      sizeof(int));
-            return idx;
-        } else {
-            return ++metadata.page_used;
-        }
-    };
-    // mark idx as an unused page
-    void erase_page(int idx) {
-        file.seekp(get_addr(idx));
-        file.write(reinterpret_cast<const char *>(&metadata.free_head),
-                   sizeof(int));
-        metadata.free_head = idx;
-    }
-
-    InternalPage read_internal_page(int idx) {
-        InternalPage page;
-        file.seekg(get_addr(idx));
-        file.read(reinterpret_cast<char *>(&page), sizeof(InternalPage));
-        if (!file) {
-            file.clear();
-        }
-        return page;
-    }
-
-    template <class U>
-    U read_page(int idx) {
-        U page;
-        file.seekg(get_addr(idx));
-        file.read(reinterpret_cast<char *>(&page), sizeof(U));
-        return page;
-    }
-    template <class U>
-    void write_page(int idx, const U &page) {
-        file.seekp(get_addr(idx));
-        file.write(reinterpret_cast<const char *>(&page), sizeof(U));
-    }
 
     int get_leaf_idx(const KeyValuePair &kv_pair, PathEntry path[],
                      int &path_size) {
         path_size = 0;
         int idx = metadata.root;
         while (true) {
-            InternalPage cur_page = read_internal_page(idx);
+            InternalPage cur_page = read_page<InternalPage>(idx);
             if (cur_page.is_leaf) {
                 break;
             }
@@ -257,8 +308,7 @@ class BPlusTree {
 
         copy_range(page.data, 0, temp_data, 0, page.size);
         copy_range(page.children, 0, temp_children, 0, page.size + 1);
-        copy_range(new_page.data, 0, temp_data, page.size + 1,
-                   new_page.size);
+        copy_range(new_page.data, 0, temp_data, page.size + 1, new_page.size);
         copy_range(new_page.children, 0, temp_children, page.size + 1,
                    new_page.size + 1);
 
@@ -412,8 +462,16 @@ class BPlusTree {
             metadata = MetaData{};
             write_metadata();
         }
+        file.seekg(0, std::ios::end);
+        file_size = file.tellg();
     };
     ~BPlusTree() {
+        for (auto &cache : caches) {
+            if (cache.dirty) {
+                file.seekp(get_addr(cache.idx));
+                file.write(cache.data, PAGE_SIZE);
+            }
+        }
         write_metadata();
         file.close();
     }
@@ -435,7 +493,7 @@ class BPlusTree {
             write_page(metadata.root, page);
             return;
         }
-        
+
         PathEntry path[64];
         int path_size;
         int idx = get_leaf_idx(kv_pair, path, path_size);
@@ -462,8 +520,7 @@ class BPlusTree {
         new_page.size = (L + 1) / 2;
         leaf_page.size = (L + 1) - new_page.size;
         copy_range(leaf_page.data, 0, temp_data, 0, leaf_page.size);
-        copy_range(new_page.data, 0, temp_data, leaf_page.size,
-                   new_page.size);
+        copy_range(new_page.data, 0, temp_data, leaf_page.size, new_page.size);
         write_page(idx, leaf_page);
         write_page(new_idx, new_page);
         insert_internal(path, path_size, new_page.data[0], idx, new_idx);
@@ -563,7 +620,7 @@ class BPlusTree {
 
         int idx = metadata.root;
         while (true) {
-            InternalPage page = read_internal_page(idx);
+            InternalPage page = read_page<InternalPage>(idx);
             if (page.is_leaf) {
                 break;
             }
