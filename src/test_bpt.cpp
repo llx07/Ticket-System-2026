@@ -54,7 +54,7 @@ int main() {
                 }
                 std::cout << '\n';
             }
-        } else if (op == "erase") {
+        } else  {
             S s = read();
             int v;
             std::cin >> v;

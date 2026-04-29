@@ -1,3 +1,6 @@
+#ifndef B_PLUS_TREE_HPP
+#define B_PLUS_TREE_HPP
+
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -507,7 +510,7 @@ class BPlusTree {
                 int sib_idx = parent_page.children[self_pos - 1];
                 LeafPage sib_page = read_page<LeafPage>(sib_idx);
                 // Case 3.1 (L): left sibling no underflow
-                if (sib_page.size >= (L + 1) / 2) {
+                if (sib_page.size > (L + 1) / 2) {
                     for (int i = leaf_page.size - 1; i >= 0; --i) {
                         leaf_page.data[i + 1] = leaf_page.data[i];
                     }
@@ -531,7 +534,7 @@ class BPlusTree {
                 int sib_idx = parent_page.children[self_pos + 1];
                 LeafPage sib_page = read_page<LeafPage>(sib_idx);
                 // Case 3.1 (R): right sibling no underflow
-                if (sib_page.size >= (L + 1) / 2) {
+                if (sib_page.size > (L + 1) / 2) {
                     leaf_page.data[leaf_page.size++] = sib_page.data[0];
                     for (int i = 1; i < sib_page.size; i++) {
                         sib_page.data[i - 1] = sib_page.data[i];
@@ -592,3 +595,5 @@ class BPlusTree {
         return result;
     }
 };
+
+#endif
