@@ -67,9 +67,9 @@ class BPlusTree {
     static constexpr int CACHE_SIZE = 4096;
 
     struct CachePage {
+        char data[PAGE_SIZE];
         int idx{0};
         bool dirty{0};
-        char data[PAGE_SIZE];
     };
     CachePage caches[CACHE_SIZE];
     sjtu::list<int> lru;
