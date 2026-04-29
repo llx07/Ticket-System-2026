@@ -1,11 +1,9 @@
 
-#include <filesystem>
-#include <string>
-
-#include <catch2/catch_test_macros.hpp>
-
 #include "b_plus_tree.hpp"
 
+#include <catch2/catch_test_macros.hpp>
+#include <filesystem>
+#include <string>
 
 template <class T, class... Args>
 sjtu::vector<T> make_vector(Args... args) {
@@ -15,23 +13,19 @@ sjtu::vector<T> make_vector(Args... args) {
 }
 
 class TempDb {
+   private:
+    std::filesystem::path path;
+
    public:
     TempDb() {
-        path_ = std::filesystem::temp_directory_path() /
-                ("b_plus_tree_test.dat");
-        std::filesystem::remove(path_);
+        path =
+            std::filesystem::temp_directory_path() / ("b_plus_tree_test.dat");
+        std::filesystem::remove(path);
     }
 
-    ~TempDb() {
-        std::filesystem::remove(path_);
-    }
+    ~TempDb() { std::filesystem::remove(path); }
 
-    std::string string() const {
-        return path_.string();
-    }
-
-   private:
-    std::filesystem::path path_;
+    std::string string() const { return path.string(); }
 };
 
 TEST_CASE("find_all returns empty for missing keys", "[b_plus_tree]") {
@@ -46,7 +40,8 @@ TEST_CASE("find_all returns empty for missing keys", "[b_plus_tree]") {
     REQUIRE(tree.find_all(2).empty());
 }
 
-TEST_CASE("insert stores values and find_all returns them sorted", "[b_plus_tree]") {
+TEST_CASE("insert stores values and find_all returns them sorted",
+          "[b_plus_tree]") {
     TempDb db;
     BPlusTree<int, int> tree(db.string());
 
