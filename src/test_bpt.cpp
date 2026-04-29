@@ -32,6 +32,9 @@ S read() {
 };
 
 int main() {
+    std::ios::sync_with_stdio(0);
+    std::cin.tie(0);
+
     BPlusTree<S, int> bpt("data.dat");
     int n;
     std::cin >> n;
@@ -54,7 +57,7 @@ int main() {
                 }
                 std::cout << '\n';
             }
-        } else  {
+        } else {
             S s = read();
             int v;
             std::cin >> v;
