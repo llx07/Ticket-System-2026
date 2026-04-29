@@ -48,6 +48,8 @@ class BPlusTree {
 
     static_assert(sizeof(InternalPage) <= PAGE_SIZE);
     static_assert(sizeof(LeafPage) <= PAGE_SIZE);
+    static_assert(M >= 3);
+    static_assert(L >= 3);
 
     std::fstream file;
 
@@ -479,7 +481,9 @@ class BPlusTree {
         // erase the corresponding element and update separators
         if (leaf_page.data[0] == kv_pair) {
             erase_val(leaf_page.data, leaf_page.size, kv_pair);
-            update_first_key(idx, leaf_page.parent, leaf_page.data[0]);
+            if (leaf_page.size) {
+                update_first_key(idx, leaf_page.parent, leaf_page.data[0]);
+            }
         } else if (!erase_val(leaf_page.data, leaf_page.size, kv_pair)) {
             return;
         }
@@ -491,7 +495,7 @@ class BPlusTree {
                 metadata.root = 0;
                 erase_page(idx);
             }
-        } else if (leaf_page.size > (L + 1) / 2) {  // Case 2: no underflow
+        } else if (leaf_page.size >= (L + 1) / 2) {  // Case 2: no underflow
             write_page(idx, leaf_page);
         } else {  // Case 3: underflow
             InternalPage parent_page =
@@ -503,7 +507,7 @@ class BPlusTree {
                 int sib_idx = parent_page.children[self_pos - 1];
                 LeafPage sib_page = read_page<LeafPage>(sib_idx);
                 // Case 3.1 (L): left sibling no underflow
-                if (sib_page.size > (L + 1) / 2) {
+                if (sib_page.size >= (L + 1) / 2) {
                     for (int i = leaf_page.size - 1; i >= 0; --i) {
                         leaf_page.data[i + 1] = leaf_page.data[i];
                     }
@@ -527,7 +531,7 @@ class BPlusTree {
                 int sib_idx = parent_page.children[self_pos + 1];
                 LeafPage sib_page = read_page<LeafPage>(sib_idx);
                 // Case 3.1 (R): right sibling no underflow
-                if (sib_page.size > (L + 1) / 2) {
+                if (sib_page.size >= (L + 1) / 2) {
                     leaf_page.data[leaf_page.size++] = sib_page.data[0];
                     for (int i = 1; i < sib_page.size; i++) {
                         sib_page.data[i - 1] = sib_page.data[i];
