@@ -161,18 +161,13 @@ class BPlusTree {
         metadata.free_head = idx;
     }
 
-    int is_leaf_page(int idx) {
-        int is_leaf;
-        file.seekg(get_addr(idx));
-        file.read(reinterpret_cast<char *>(&is_leaf), sizeof(int));
-        return is_leaf;
-    };
-
-    InternalPage read_internal_after_type(int is_leaf) {
+    InternalPage read_internal_page(int idx) {
         InternalPage page;
-        page.is_leaf = is_leaf;
-        file.read(reinterpret_cast<char *>(&page) + sizeof(int),
-                  sizeof(InternalPage) - sizeof(int));
+        file.seekg(get_addr(idx));
+        file.read(reinterpret_cast<char *>(&page), sizeof(InternalPage));
+        if (!file) {
+            file.clear();
+        }
         return page;
     }
 
@@ -194,11 +189,10 @@ class BPlusTree {
         path_size = 0;
         int idx = metadata.root;
         while (true) {
-            int is_leaf = is_leaf_page(idx);
-            if (is_leaf) {
+            InternalPage cur_page = read_internal_page(idx);
+            if (cur_page.is_leaf) {
                 break;
             }
-            InternalPage cur_page = read_internal_after_type(is_leaf);
             int left = 0, right = cur_page.size;
             while (left < right) {
                 int mid = (left + right) / 2;
@@ -569,11 +563,10 @@ class BPlusTree {
 
         int idx = metadata.root;
         while (true) {
-            int is_leaf = is_leaf_page(idx);
-            if (is_leaf) {
+            InternalPage page = read_internal_page(idx);
+            if (page.is_leaf) {
                 break;
             }
-            InternalPage page = read_internal_after_type(is_leaf);
             int left = 0, right = page.size;
             while (left < right) {
                 int mid = (left + right) / 2;
