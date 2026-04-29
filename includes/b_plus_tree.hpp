@@ -27,21 +27,23 @@ class BPlusTree {
     };
 
     static constexpr int M =
-        (PAGE_SIZE - 16) / (sizeof(KeyValuePair) + sizeof(int));
-    static constexpr int L = (PAGE_SIZE - 16) / (sizeof(KeyValuePair));
+        (PAGE_SIZE - 12) / (sizeof(KeyValuePair) + sizeof(int));
+    static constexpr int L = (PAGE_SIZE - 12) / (sizeof(KeyValuePair));
     struct InternalPage {
         int is_leaf{0};
         int size;
-        int parent;
         KeyValuePair data[M];
         int children[M + 1];
     };
     struct LeafPage {
         int is_leaf{1};
         int size;
-        int parent;
         int next;
         KeyValuePair data[L];
+    };
+    struct PathEntry {
+        int idx;
+        int ch_pos;
     };
     struct MetaData {
         int free_head{};
@@ -70,7 +72,7 @@ class BPlusTree {
             }
         }
         int pos = left;
-        for (int i = len; i > pos; --i) {
+        for (int i = len; i > pos; i--) {
             arr[i] = arr[i - 1];
         }
 
@@ -95,7 +97,7 @@ class BPlusTree {
         if (pos == len || x < arr[pos]) {
             return false;
         }
-        for (int i = pos + 1; i < len; ++i) {
+        for (int i = pos + 1; i < len; i++) {
             arr[i - 1] = arr[i];
         }
         --len;
@@ -104,7 +106,7 @@ class BPlusTree {
 
     template <class U>
     int find_val(U arr[], int len, const U &x) {
-        for (int i = 0; i < len; ++i) {
+        for (int i = 0; i < len; i++) {
             if (arr[i] == x) {
                 return i;
             }
@@ -170,7 +172,9 @@ class BPlusTree {
         file.write(reinterpret_cast<const char *>(&page), sizeof(U));
     }
 
-    int get_leaf_idx(const KeyValuePair &kv_pair) {
+    int get_leaf_idx(const KeyValuePair &kv_pair, PathEntry path[],
+                     int &path_size) {
+        path_size = 0;
         int idx = metadata.root;
         while (true) {
             int is_leaf = is_leaf_page(idx);
@@ -179,151 +183,144 @@ class BPlusTree {
             }
             InternalPage cur_page = read_internal_after_type(is_leaf);
             int child = cur_page.size;
-            for (int i = 0; i < cur_page.size; ++i) {
+            for (int i = 0; i < cur_page.size; i++) {
                 if (kv_pair < cur_page.data[i]) {
                     child = i;
                     break;
                 }
             }
+            path[path_size++] = {idx, child};
             idx = cur_page.children[child];
         }
         return idx;
     }
 
-    void set_parent(int idx, int p) {
-        if (is_leaf_page(idx)) {
-            LeafPage page = read_page<LeafPage>(idx);
-            page.parent = p;
-            write_page(idx, page);
-        } else {
-            InternalPage page = read_page<InternalPage>(idx);
-            page.parent = p;
-            write_page(idx, page);
-        }
-    };
-    void insert_internal(int idx, const KeyValuePair &kv_pair, int left_idx,
-                         int right_idx) {
-        if (!idx) {
+    void insert_internal_recursive(PathEntry path[], int path_pos,
+                                   const KeyValuePair &kv_pair, int left_idx,
+                                   int right_idx) {
+        if (path_pos < 0) {  // Case 1: root
             InternalPage root_page;
             metadata.root = new_free_page();
             root_page.size = 1;
-            root_page.parent = 0;
             root_page.children[0] = left_idx;
             root_page.children[1] = right_idx;
             root_page.data[0] = kv_pair;
-
-            set_parent(left_idx, metadata.root);
-            set_parent(right_idx, metadata.root);
             write_page(metadata.root, root_page);
             return;
         }
 
+        int idx = path[path_pos].idx;
+        int ch_pos = path[path_pos].ch_pos;
         InternalPage page = read_page<InternalPage>(idx);
+        // Case 2: no overflow
         if (page.size < M) {
-            int i = insert_val(page.data, page.size, kv_pair);
-            for (int j = page.size - 1; j > i; j--) {
-                page.children[j + 1] = page.children[j];
+            for (int i = page.size; i > ch_pos; i--) {
+                page.data[i] = page.data[i - 1];
             }
-            page.children[i] = left_idx;
-            page.children[i + 1] = right_idx;
+            for (int i = page.size + 1; i > ch_pos + 1; i--) {
+                page.children[i] = page.children[i - 1];
+            }
+            page.data[ch_pos] = kv_pair;
+            page.children[ch_pos] = left_idx;
+            page.children[ch_pos + 1] = right_idx;
+            ++page.size;
             write_page(idx, page);
-        } else {
-            KeyValuePair temp_data[M + 1];
-            int temp_children[M + 2];
-            for (int i = 0; i < M; i++) {
-                temp_data[i] = page.data[i];
-            }
-            int len = M;
-            int pos = insert_val(temp_data, len, kv_pair);
-            for (int i = 0; i <= M; i++) {
-                temp_children[i] = page.children[i];
-            }
-            for (int i = M; i > pos; i--) {
-                temp_children[i + 1] = temp_children[i];
-            }
-            temp_children[pos] = left_idx;
-            temp_children[pos + 1] = right_idx;
-
-            int new_idx = new_free_page();
-            InternalPage new_page;
-            new_page.parent = page.parent;
-            new_page.size = (M + 1) / 2;
-            page.size = M - new_page.size;
-
-            for (int i = 0; i < page.size; i++) {
-                page.data[i] = temp_data[i];
-            }
-            for (int i = 0; i <= page.size; i++) {
-                // here we don't set parent because they are already correct.
-                page.children[i] = temp_children[i];
-            }
-            for (int i = 0; i < new_page.size; i++) {
-                new_page.data[i] = temp_data[page.size + 1 + i];
-            }
-            for (int i = 0; i <= new_page.size; ++i) {
-                new_page.children[i] = temp_children[page.size + 1 + i];
-                set_parent(new_page.children[i], new_idx);
-            }
-
-            write_page(idx, page);
-            write_page(new_idx, new_page);
-            insert_internal(page.parent, temp_data[page.size], idx, new_idx);
+            return;
         }
+        // Case 3: overflow, split
+        KeyValuePair temp_data[M + 1];
+        int temp_children[M + 2];
+        for (int i = 0; i < ch_pos; i++) {
+            temp_data[i] = page.data[i];
+        }
+        temp_data[ch_pos] = kv_pair;
+        for (int i = ch_pos; i < M; i++) {
+            temp_data[i + 1] = page.data[i];
+        }
+
+        for (int i = 0; i <= ch_pos; i++) {
+            temp_children[i] = page.children[i];
+        }
+        temp_children[ch_pos] = left_idx;
+        temp_children[ch_pos + 1] = right_idx;
+        for (int i = ch_pos + 1; i <= M; i++) {
+            temp_children[i + 1] = page.children[i];
+        }
+
+        int new_idx = new_free_page();
+        InternalPage new_page;
+        new_page.size = (M + 1) / 2;
+        page.size = M - new_page.size;
+
+        for (int i = 0; i < page.size; i++) {
+            page.data[i] = temp_data[i];
+        }
+        for (int i = 0; i <= page.size; i++) {
+            page.children[i] = temp_children[i];
+        }
+        for (int i = 0; i < new_page.size; i++) {
+            new_page.data[i] = temp_data[page.size + 1 + i];
+        }
+        for (int i = 0; i <= new_page.size; i++) {
+            new_page.children[i] = temp_children[page.size + 1 + i];
+        }
+
+        write_page(idx, page);
+        write_page(new_idx, new_page);
+        insert_internal_recursive(path, path_pos - 1, temp_data[page.size], idx,
+                                  new_idx);
+    }
+
+    void insert_internal(PathEntry path[], int path_size, KeyValuePair kv_pair,
+                         int left_idx, int right_idx) {
+        insert_internal_recursive(path, path_size - 1, kv_pair, left_idx,
+                                  right_idx);
     }
 
     // update the minimum of idx to kv_pair
-    void update_first_key(int idx, int parent_idx,
+    void update_first_key(PathEntry path[], int path_size,
                           const KeyValuePair &kv_pair) {
-        while (parent_idx) {
-            InternalPage parent_page = read_page<InternalPage>(parent_idx);
-            int child = 0;
-            while (parent_page.children[child] != idx) {
-                ++child;
-            }
-            if (child) {
-                parent_page.data[child - 1] = kv_pair;
-                write_page(parent_idx, parent_page);
+        for (int i = path_size - 1; i >= 0; i--) {
+            if (path[i].ch_pos) {
+                InternalPage page = read_page<InternalPage>(path[i].idx);
+                page.data[path[i].ch_pos - 1] = kv_pair;
+                write_page(path[i].idx, page);
                 return;
             }
-            idx = parent_idx;
-            parent_idx = parent_page.parent;
         }
+    }
+
+    void remove_child(InternalPage &page, int del_ch_pos) {
+        for (int i = del_ch_pos + 1; i <= page.size; i++) {
+            page.children[i - 1] = page.children[i];
+        }
+        int data_pos = del_ch_pos - 1;
+        for (int i = data_pos + 1; i < page.size; i++) {
+            page.data[i - 1] = page.data[i];
+        }
+        --page.size;
     }
 
     // requirements: del_ch_pos is not the first child (we always merge right
     // into left)
-    void erase_internal(int idx, int del_ch_pos) {
+    void erase_internal(PathEntry path[], int path_pos, int del_ch_pos) {
+        int idx = path[path_pos].idx;
         InternalPage page = read_page<InternalPage>(idx);
-        if (page.parent == 0) {  // Case 1: root
-            for (int i = del_ch_pos + 1; i <= page.size; ++i) {
-                page.children[i - 1] = page.children[i];
-            }
-            int data_pos = del_ch_pos - 1;
-            for (int i = data_pos + 1; i < page.size; ++i) {
-                page.data[i - 1] = page.data[i];
-            }
-            --page.size;
+        if (path_pos == 0) {  // Case 1: root
+            remove_child(page, del_ch_pos);
             if (page.size) {
                 write_page(idx, page);
             } else {
                 metadata.root = page.children[0];
-                set_parent(metadata.root, 0);
                 erase_page(idx);
             }
         } else if (page.size > M / 2) {  // Case 2: no underflow
-            for (int i = del_ch_pos + 1; i <= page.size; ++i) {
-                page.children[i - 1] = page.children[i];
-            }
-            int data_pos = del_ch_pos - 1;
-            for (int i = data_pos + 1; i < page.size; ++i) {
-                page.data[i - 1] = page.data[i];
-            }
-            --page.size;
+            remove_child(page, del_ch_pos);
             write_page(idx, page);
         } else {  // Case 3: underflow
-            InternalPage parent_page = read_page<InternalPage>(page.parent);
-            int self_pos =
-                find_val(parent_page.children, parent_page.size + 1, idx);
+            InternalPage parent_page =
+                read_page<InternalPage>(path[path_pos - 1].idx);
+            int self_pos = path[path_pos - 1].ch_pos;
 
             if (self_pos > 0) {  // left sibling
                 int sib_idx = parent_page.children[self_pos - 1];
@@ -334,40 +331,38 @@ class BPlusTree {
                     KeyValuePair s_key = sib_page.data[sib_page.size - 1];
                     KeyValuePair p_key = parent_page.data[self_pos - 1];
 
-                    for (int i = del_ch_pos - 1; i >= 0; --i) {
+                    for (int i = del_ch_pos - 1; i >= 0; i--) {
                         page.children[i + 1] = page.children[i];
                     }
                     page.children[0] = borrowed_child;
-                    for (int i = del_ch_pos - 2; i >= 0; --i) {
+                    for (int i = del_ch_pos - 2; i >= 0; i--) {
                         page.data[i + 1] = page.data[i];
                     }
                     page.data[0] = p_key;
 
                     --sib_page.size;
                     parent_page.data[self_pos - 1] = s_key;
-                    set_parent(borrowed_child, idx);
                     write_page(idx, page);
                     write_page(sib_idx, sib_page);
-                    write_page(page.parent, parent_page);
+                    write_page(path[path_pos - 1].idx, parent_page);
                 }
                 // Case 3.2 (L): left sibling underflow, merge
                 else {
                     int pos = sib_page.size;
                     sib_page.data[pos++] = parent_page.data[self_pos - 1];
-                    for (int i = 0; i < page.size; ++i) {
+                    for (int i = 0; i < page.size; i++) {
                         if (i == del_ch_pos - 1) continue;
                         sib_page.data[pos++] = page.data[i];
                     }
                     int child_pos = sib_page.size + 1;
-                    for (int i = 0; i <= page.size; ++i) {
+                    for (int i = 0; i <= page.size; i++) {
                         if (i == del_ch_pos) continue;
                         sib_page.children[child_pos++] = page.children[i];
-                        set_parent(page.children[i], sib_idx);
                     }
                     sib_page.size = pos;
                     write_page(sib_idx, sib_page);
                     erase_page(idx);
-                    erase_internal(sib_page.parent, self_pos);
+                    erase_internal(path, path_pos - 1, self_pos);
                 }
             } else {
                 int sib_idx = parent_page.children[self_pos + 1];
@@ -378,53 +373,51 @@ class BPlusTree {
                     KeyValuePair s_key = sib_page.data[0];
                     KeyValuePair p_key = parent_page.data[self_pos];
 
-                    for (int i = del_ch_pos + 1; i <= page.size; ++i) {
+                    for (int i = del_ch_pos + 1; i <= page.size; i++) {
                         page.children[i - 1] = page.children[i];
                     }
                     int data_pos = del_ch_pos - 1;
-                    for (int i = data_pos + 1; i < page.size; ++i) {
+                    for (int i = data_pos + 1; i < page.size; i++) {
                         page.data[i - 1] = page.data[i];
                     }
                     page.data[page.size - 1] = p_key;
                     page.children[page.size] = borrowed_child;
 
-                    for (int i = 1; i <= sib_page.size; ++i) {
+                    for (int i = 1; i <= sib_page.size; i++) {
                         sib_page.children[i - 1] = sib_page.children[i];
                     }
-                    for (int i = 1; i < sib_page.size; ++i) {
+                    for (int i = 1; i < sib_page.size; i++) {
                         sib_page.data[i - 1] = sib_page.data[i];
                     }
                     --sib_page.size;
                     parent_page.data[self_pos] = s_key;
-                    set_parent(borrowed_child, idx);
                     write_page(idx, page);
                     write_page(sib_idx, sib_page);
-                    write_page(page.parent, parent_page);
+                    write_page(path[path_pos - 1].idx, parent_page);
                 }
                 // Case 3.2 (R): right sibling underflow, merge
                 else {
                     int pos = page.size - 1;
-                    for (int i = del_ch_pos; i < page.size; ++i) {
+                    for (int i = del_ch_pos; i < page.size; i++) {
                         page.children[i] = page.children[i + 1];
                     }
                     int data_pos = del_ch_pos - 1;
-                    for (int i = data_pos + 1; i < page.size; ++i) {
+                    for (int i = data_pos + 1; i < page.size; i++) {
                         page.data[i - 1] = page.data[i];
                     }
 
                     page.data[pos++] = parent_page.data[self_pos];
-                    for (int i = 0; i < sib_page.size; ++i) {
+                    for (int i = 0; i < sib_page.size; i++) {
                         page.data[pos++] = sib_page.data[i];
                     }
                     int child_pos = page.size;
-                    for (int i = 0; i <= sib_page.size; ++i) {
+                    for (int i = 0; i <= sib_page.size; i++) {
                         page.children[child_pos++] = sib_page.children[i];
-                        set_parent(sib_page.children[i], idx);
                     }
                     page.size = pos;
                     write_page(idx, page);
                     erase_page(sib_idx);
-                    erase_internal(page.parent, self_pos + 1);
+                    erase_internal(path, path_pos - 1, self_pos + 1);
                 }
             }
         }
@@ -460,13 +453,14 @@ class BPlusTree {
             metadata.root = new_free_page();
             LeafPage page;
             page.size = 1;
-            page.parent = 0;
             page.next = 0;
             page.data[0] = kv_pair;
             write_page(metadata.root, page);
             return;
         }
-        int idx = get_leaf_idx(kv_pair);
+        PathEntry path[64];
+        int path_size;
+        int idx = get_leaf_idx(kv_pair, path, path_size);
         LeafPage leaf_page = read_page<LeafPage>(idx);
         if (leaf_page.size < L) {
             insert_val(leaf_page.data, leaf_page.size, kv_pair);
@@ -474,7 +468,7 @@ class BPlusTree {
             return;
         }
         KeyValuePair temp_data[L + 1];
-        for (int i = 0; i < L; ++i) {
+        for (int i = 0; i < L; i++) {
             temp_data[i] = leaf_page.data[i];
         }
 
@@ -483,20 +477,19 @@ class BPlusTree {
 
         LeafPage new_page;
         int new_idx = new_free_page();
-        new_page.parent = leaf_page.parent;
         new_page.next = leaf_page.next;
         leaf_page.next = new_idx;
         new_page.size = (L + 1) / 2;
         leaf_page.size = (L + 1) - new_page.size;
-        for (int i = 0; i < leaf_page.size; ++i) {
+        for (int i = 0; i < leaf_page.size; i++) {
             leaf_page.data[i] = temp_data[i];
         }
-        for (int i = 0; i < new_page.size; ++i) {
+        for (int i = 0; i < new_page.size; i++) {
             new_page.data[i] = temp_data[leaf_page.size + i];
         }
         write_page(idx, leaf_page);
         write_page(new_idx, new_page);
-        insert_internal(leaf_page.parent, new_page.data[0], idx, new_idx);
+        insert_internal(path, path_size, new_page.data[0], idx, new_idx);
     }
     // erase (key, value) in the tree
     // if (key, value) does not exist before, do nothing
@@ -506,20 +499,22 @@ class BPlusTree {
         }
 
         auto kv_pair = KeyValuePair{key, value};
-        int idx = get_leaf_idx(kv_pair);
+        PathEntry path[64];
+        int path_size;
+        int idx = get_leaf_idx(kv_pair, path, path_size);
         LeafPage leaf_page = read_page<LeafPage>(idx);
 
         // erase the corresponding element and update separators
         if (leaf_page.data[0] == kv_pair) {
             erase_val(leaf_page.data, leaf_page.size, kv_pair);
             if (leaf_page.size) {
-                update_first_key(idx, leaf_page.parent, leaf_page.data[0]);
+                update_first_key(path, path_size, leaf_page.data[0]);
             }
         } else if (!erase_val(leaf_page.data, leaf_page.size, kv_pair)) {
             return;
         }
 
-        if (!leaf_page.parent) {  // Case 1: root
+        if (!path_size) {  // Case 1: root
             if (leaf_page.size) {
                 write_page(idx, leaf_page);
             } else {
@@ -530,21 +525,20 @@ class BPlusTree {
             write_page(idx, leaf_page);
         } else {  // Case 3: underflow
             InternalPage parent_page =
-                read_page<InternalPage>(leaf_page.parent);
-            int self_pos =
-                find_val(parent_page.children, parent_page.size + 1, idx);
+                read_page<InternalPage>(path[path_size - 1].idx);
+            int self_pos = path[path_size - 1].ch_pos;
 
             if (self_pos > 0) {  // left sibling
                 int sib_idx = parent_page.children[self_pos - 1];
                 LeafPage sib_page = read_page<LeafPage>(sib_idx);
                 // Case 3.1 (L): left sibling no underflow
                 if (sib_page.size > (L + 1) / 2) {
-                    for (int i = leaf_page.size - 1; i >= 0; --i) {
+                    for (int i = leaf_page.size - 1; i >= 0; i--) {
                         leaf_page.data[i + 1] = leaf_page.data[i];
                     }
                     leaf_page.data[0] = sib_page.data[--sib_page.size];
                     ++leaf_page.size;
-                    update_first_key(idx, leaf_page.parent, leaf_page.data[0]);
+                    update_first_key(path, path_size, leaf_page.data[0]);
                     write_page(idx, leaf_page);
                     write_page(sib_idx, sib_page);
                 }
@@ -556,7 +550,7 @@ class BPlusTree {
                     sib_page.next = leaf_page.next;
                     write_page(sib_idx, sib_page);
                     erase_page(idx);
-                    erase_internal(sib_page.parent, self_pos);
+                    erase_internal(path, path_size - 1, self_pos);
                 }
             } else {
                 int sib_idx = parent_page.children[self_pos + 1];
@@ -568,10 +562,10 @@ class BPlusTree {
                         sib_page.data[i - 1] = sib_page.data[i];
                     }
                     --sib_page.size;
-                    update_first_key(sib_idx, sib_page.parent,
-                                     sib_page.data[0]);
+                    parent_page.data[self_pos] = sib_page.data[0];
                     write_page(idx, leaf_page);
                     write_page(sib_idx, sib_page);
+                    write_page(path[path_size - 1].idx, parent_page);
                 }
                 // Case 3.2 (R): right sibling underflow, merge
                 else {
@@ -581,7 +575,7 @@ class BPlusTree {
                     leaf_page.next = sib_page.next;
                     write_page(idx, leaf_page);
                     erase_page(sib_idx);
-                    erase_internal(leaf_page.parent, self_pos + 1);
+                    erase_internal(path, path_size - 1, self_pos + 1);
                 }
             }
         }
@@ -602,7 +596,7 @@ class BPlusTree {
             }
             InternalPage page = read_internal_after_type(is_leaf);
             int child = page.size;
-            for (int i = 0; i < page.size; ++i) {
+            for (int i = 0; i < page.size; i++) {
                 if (!(page.data[i].first < key)) {
                     child = i;
                     break;
@@ -613,7 +607,7 @@ class BPlusTree {
 
         while (idx) {
             LeafPage page = read_page<LeafPage>(idx);
-            for (int i = 0; i < page.size; ++i) {
+            for (int i = 0; i < page.size; i++) {
                 if (page.data[i].first < key) {
                     continue;
                 }
