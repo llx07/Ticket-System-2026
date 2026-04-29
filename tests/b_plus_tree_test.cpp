@@ -120,7 +120,7 @@ TEST_CASE("erase works after leaf splits and merges", "[b_plus_tree]") {
 TEST_CASE("mixed insert erase stress test", "[b_plus_tree]") {
     constexpr int value_limit = 2048;
     constexpr int key_limit = 97;
-    constexpr int operation_count = 100000;
+    constexpr int operation_count = 1000000;
 
     TempDb db;
     BPlusTree<int, int> tree(db.string());

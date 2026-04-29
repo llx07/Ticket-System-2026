@@ -133,6 +133,14 @@ class BPlusTree {
         return is_leaf;
     };
 
+    InternalPage read_internal_after_type(int is_leaf) {
+        InternalPage page;
+        page.is_leaf = is_leaf;
+        file.read(reinterpret_cast<char *>(&page) + sizeof(int),
+                  sizeof(InternalPage) - sizeof(int));
+        return page;
+    }
+
     template <class U>
     U read_page(int idx) {
         U page;
@@ -148,8 +156,12 @@ class BPlusTree {
 
     int get_leaf_idx(const KeyValuePair &kv_pair) {
         int idx = metadata.root;
-        while (!is_leaf_page(idx)) {
-            InternalPage cur_page = read_page<InternalPage>(idx);
+        while (true) {
+            int is_leaf = is_leaf_page(idx);
+            if (is_leaf) {
+                break;
+            }
+            InternalPage cur_page = read_internal_after_type(is_leaf);
             int child = cur_page.size;
             for (int i = 0; i < cur_page.size; ++i) {
                 if (kv_pair < cur_page.data[i]) {
@@ -567,8 +579,12 @@ class BPlusTree {
         }
 
         int idx = metadata.root;
-        while (!is_leaf_page(idx)) {
-            InternalPage page = read_page<InternalPage>(idx);
+        while (true) {
+            int is_leaf = is_leaf_page(idx);
+            if (is_leaf) {
+                break;
+            }
+            InternalPage page = read_internal_after_type(is_leaf);
             int child = page.size;
             for (int i = 0; i < page.size; ++i) {
                 if (!(page.data[i].first < key)) {
