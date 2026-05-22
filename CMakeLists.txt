@@ -71,6 +71,17 @@ target_link_libraries(parser_tests PRIVATE
     Catch2::Catch2WithMain
 )
 
+add_executable(fixed_string_tests
+    tests/fixed_string_test.cpp
+)
+target_include_directories(fixed_string_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/includes
+)
+
+target_link_libraries(fixed_string_tests PRIVATE
+    Catch2::Catch2WithMain
+)
+
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
@@ -79,3 +90,4 @@ catch_discover_tests(b_plus_tree_tests)
 catch_discover_tests(list_tests)
 catch_discover_tests(unordered_map_tests)
 catch_discover_tests(parser_tests)
+catch_discover_tests(fixed_string_tests)
