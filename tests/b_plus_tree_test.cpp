@@ -57,6 +57,33 @@ TEST_CASE("insert stores values and find_all returns them sorted",
     REQUIRE(tree.find_all(9) == make_vector<int>(900));
 }
 
+TEST_CASE("find returns the first value for a key", "[b_plus_tree]") {
+    TempDb db;
+    BPlusTree<int, int> tree(db.string());
+    int value = -1;
+
+    REQUIRE_FALSE(tree.find(7, value));
+
+    tree.insert(7, 30);
+    tree.insert(7, 10);
+    tree.insert(7, 20);
+    tree.insert(3, 300);
+
+    REQUIRE(tree.find(7, value));
+    REQUIRE(value == 10);
+    REQUIRE(tree.find(3, value));
+    REQUIRE(value == 300);
+    REQUIRE_FALSE(tree.find(9, value));
+
+    tree.erase(7, 10);
+    REQUIRE(tree.find(7, value));
+    REQUIRE(value == 20);
+
+    tree.erase(7, 20);
+    tree.erase(7, 30);
+    REQUIRE_FALSE(tree.find(7, value));
+}
+
 TEST_CASE("find_all works after leaf splits", "[b_plus_tree]") {
     TempDb db;
     BPlusTree<int, int> tree(db.string());
@@ -74,6 +101,10 @@ TEST_CASE("find_all works after leaf splits", "[b_plus_tree]") {
     for (int i = 0; i < 800; ++i) {
         REQUIRE(values[i] == i);
     }
+
+    int value = -1;
+    REQUIRE(tree.find(5, value));
+    REQUIRE(value == 0);
 }
 
 TEST_CASE("erase removes one value and ignores missing pairs",

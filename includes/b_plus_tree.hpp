@@ -642,6 +642,48 @@ class BPlusTree {
         }
         return result;
     }
+
+    // find the first value with the given key
+    bool find(const Key &key, T &value) {
+        if (!metadata.root) {
+            return false;
+        }
+
+        int idx = metadata.root;
+        while (true) {
+            InternalPage page = read_page<InternalPage>(idx);
+            if (page.is_leaf) {
+                break;
+            }
+            int left = 0, right = page.size;
+            while (left < right) {
+                int mid = (left + right) / 2;
+                if (page.data[mid].first < key) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            }
+            int child = left;
+            idx = page.children[child];
+        }
+
+        while (idx) {
+            LeafPage page = read_page<LeafPage>(idx);
+            for (int i = 0; i < page.size; i++) {
+                if (page.data[i].first < key) {
+                    continue;
+                }
+                if (key < page.data[i].first) {
+                    return false;
+                }
+                value = page.data[i].second;
+                return true;
+            }
+            idx = page.next;
+        }
+        return false;
+    }
 };
 
 #endif
