@@ -1,6 +1,6 @@
 
-#include "b_plus_tree.hpp"
-#include "map.hpp"
+#include "storage/b_plus_tree.hpp"
+#include "containers/map.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>

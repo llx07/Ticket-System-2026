@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "util.hpp"
+#include "common/util.hpp"
 
 struct Command {
     int timestamp;

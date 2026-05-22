@@ -1,4 +1,4 @@
-#include "fixed_string.hpp"
+#include "common/fixed_string.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

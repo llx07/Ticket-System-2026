@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "vector.hpp"
+#include "containers/vector.hpp"
 
 inline sjtu::vector<std::string> split(const std::string &str) {
     sjtu::vector<std::string> result;

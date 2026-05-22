@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-#include "b_plus_tree.hpp"
+#include "storage/b_plus_tree.hpp"
 
 template <int size>
 struct char_array {
