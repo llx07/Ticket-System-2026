@@ -119,7 +119,8 @@ class UserSystem {
             return false;
         }
 
-        if (result.privilege > cur_user.privilege) {
+        if (!(result.privilege < cur_user.privilege ||
+              cur_username == username)) {
             return false;
         }
 
@@ -141,8 +142,11 @@ class UserSystem {
         if (!get_user(username, result)) {
             return false;
         }
-        if (result.privilege > cur_user.privilege ||
-            (privilege && *privilege > cur_user.privilege)) {
+        if (!(result.privilege < cur_user.privilege ||
+              cur_username == username)) {
+            return false;
+        }
+        if (privilege && *privilege >= cur_user.privilege) {
             return false;
         }
 

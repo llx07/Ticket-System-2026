@@ -10,8 +10,8 @@ struct Command {
     std::string name;
 
     std::string args[26];
-    bool has(char key) { return !args[key - 'a'].empty(); }
-    const std::string& arg(char key) { return args[key - 'a']; }
+    bool has(char key) const { return !args[key - 'a'].empty(); }
+    const std::string& arg(char key) const { return args[key - 'a']; }
 };
 
 inline Command parse_command(const std::string& line) {

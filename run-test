@@ -27,8 +27,9 @@ fi
 
 list=$(jq ".Groups[] | select(.GroupName == \"$1\") | .TestPoints[]" testcases/config.json)
 
+builddir="build"
 exename="code"
-if [ ! -e "$exename" ]; then
+if [ ! -e "$builddir/$exename" ]; then
   echo "Please compile the ticket system and place the executable at \"$exename\""
   exit 1
 fi
@@ -50,7 +51,7 @@ function tmpdir () {
 }
 
 testdir="$(tmpdir)"
-cp "$exename" "$testdir/"
+cp "$builddir/$exename" "$testdir/"
 exe="$testdir/$exename"
 cwd="$(pwd)"
 basedir="$cwd/testcases"

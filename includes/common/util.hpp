@@ -35,4 +35,28 @@ inline int to_int(const std::string &str) {
     return result;
 }
 
+inline std::string to_string(int value) {
+    if (value == 0) return "0";
+
+    bool negative = false;
+    if (value < 0) {
+        negative = true;
+        value = -value;
+    }
+
+    char buffer[12];
+    int len = 0;
+    while (value > 0) {
+        buffer[len++] = static_cast<char>('0' + value % 10);
+        value /= 10;
+    }
+    if (negative) buffer[len++] = '-';
+
+    std::string result;
+    for (int i = len - 1; i >= 0; --i) {
+        result += buffer[i];
+    }
+    return result;
+}
+
 #endif
