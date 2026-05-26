@@ -127,17 +127,15 @@ class TicketSystem {
         return ok ? format_train(train, train_seat, date) : "-1";
     }
 
-    std::string format_ticket_result(const TrainSystem::TicketResult& result,
-                                     const std::string& from,
-                                     const std::string& to) {
+    std::string format_ticket_result(const TrainSystem::TicketResult& result) {
         std::string output;
         output += result.trainID.to_string();
         output += " ";
-        output += from;
+        output += result.from;
         output += " ";
         output += format_time(result.leaving_time);
         output += " -> ";
-        output += to;
+        output += result.to;
         output += " ";
         output += format_time(result.arriving_time);
         output += " ";
@@ -155,13 +153,24 @@ class TicketSystem {
         std::string output;
         output += to_string(static_cast<int>(results.size()));
         for (const auto& result : results) {
-            output +=
-                '\n' + format_ticket_result(result, cmd.arg('s'), cmd.arg('t'));
+            output += '\n' + format_ticket_result(result);
         }
         return output;
     }
 
-    // TODO query_transfer
+    std::string handle_query_transfer(const Command& cmd) {
+        Date date = parse_date(cmd.arg('d'));
+
+        TrainSystem::TicketResult first_leg, second_leg;
+
+        if (!train_system.query_transfer(cmd.arg('s'), cmd.arg('t'), date,
+                                         cmd.has('p') ? cmd.arg('p') : "time",
+                                         first_leg, second_leg)) {
+            return "0";
+        };
+        return format_ticket_result(first_leg) + "\n" +
+               format_ticket_result(second_leg);
+    }
 
     std::string handle_buy_ticket(const Command& cmd) {
         Username username = cmd.arg('u');
@@ -289,6 +298,8 @@ class TicketSystem {
         if (cmd.name == "delete_train") return handle_delete_train(cmd);
         if (cmd.name == "release_train") return handle_release_train(cmd);
         if (cmd.name == "query_train") return handle_query_train(cmd);
+        if (cmd.name == "query_ticket") return handle_query_ticket(cmd);
+        if (cmd.name == "query_transfer") return handle_query_transfer(cmd);
         if (cmd.name == "buy_ticket") return handle_buy_ticket(cmd);
         if (cmd.name == "query_order") return handle_query_order(cmd);
         if (cmd.name == "refund_ticket") return handle_refund_ticket(cmd);
