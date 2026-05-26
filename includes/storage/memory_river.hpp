@@ -41,21 +41,29 @@ class MemoryRiver {
     void read(U& u, int index, size_t offset);
     // Deletes the object at index.
     void erase(int index);
+    // Returns the number of objects currently stored.
+    int size() const;
 
    private:
     int count = 0;
     int free_head = 0;
+    int object_count = 0;
     std::fstream file;
     std::string file_name;
 
-    static constexpr int SUPER_INFO_LEN = 2;
+    static constexpr int SUPER_INFO_LEN = 3;
     static constexpr int GLOBAL_OFFSET = SUPER_INFO_LEN * sizeof(int);
     static constexpr int SIZEOF_T = sizeof(T);
+    static constexpr int COUNT_OFFSET = 0;
+    static constexpr int FREE_HEAD_OFFSET = sizeof(int);
+    static constexpr int OBJECT_COUNT_OFFSET = 2 * sizeof(int);
 
     // Initializes a new file.
     void initFile();
     // Opens the existing file.
     void openFile();
+    void readMeta();
+    void writeMeta();
     // Returns the next pointer for the free list.
     int getNext(int index);
     // Modifies the next pointer for the free list.
@@ -73,8 +81,7 @@ MemoryRiver<T, info_len>::MemoryRiver(const std::string& _file_name)
 template <class T, int info_len>
 MemoryRiver<T, info_len>::~MemoryRiver() {
     if (file.is_open()) {
-        writeInfo(count, -1);
-        writeInfo(free_head, 0);
+        writeMeta();
         file.close();
     }
 }
@@ -95,12 +102,15 @@ int MemoryRiver<T, info_len>::write(const T& t) {
     if (!free_head) {
         file.seekp(GLOBAL_OFFSET + (info_len) * sizeof(int) + SIZEOF_T * count);
         file.write(reinterpret_cast<const char*>(&t), SIZEOF_T);
-        return ++count;
+        ++count;
+        ++object_count;
+        return count;
     }
     const int pos = free_head;
     free_head = getNext(free_head);
     file.seekp(GLOBAL_OFFSET + (info_len) * sizeof(int) + SIZEOF_T * (pos - 1));
     file.write(reinterpret_cast<const char*>(&t), SIZEOF_T);
+    ++object_count;
     return pos;
 }
 template <class T, int info_len>
@@ -135,6 +145,11 @@ template <class T, int info_len>
 void MemoryRiver<T, info_len>::erase(const int index) {
     writeNext(index, free_head);
     free_head = index;
+    --object_count;
+}
+template <class T, int info_len>
+int MemoryRiver<T, info_len>::size() const {
+    return object_count;
 }
 
 template <class T, int info_len>
@@ -148,8 +163,25 @@ void MemoryRiver<T, info_len>::initFile() {
 template <class T, int info_len>
 void MemoryRiver<T, info_len>::openFile() {
     file.open(file_name, std::ios::in | std::ios::out | std::ios::binary);
-    getInfo(count, -1);
-    getInfo(free_head, 0);
+    readMeta();
+}
+template <class T, int info_len>
+void MemoryRiver<T, info_len>::readMeta() {
+    file.seekg(COUNT_OFFSET);
+    file.read(reinterpret_cast<char*>(&count), sizeof(int));
+    file.seekg(FREE_HEAD_OFFSET);
+    file.read(reinterpret_cast<char*>(&free_head), sizeof(int));
+    file.seekg(OBJECT_COUNT_OFFSET);
+    file.read(reinterpret_cast<char*>(&object_count), sizeof(int));
+}
+template <class T, int info_len>
+void MemoryRiver<T, info_len>::writeMeta() {
+    file.seekp(COUNT_OFFSET);
+    file.write(reinterpret_cast<const char*>(&count), sizeof(int));
+    file.seekp(FREE_HEAD_OFFSET);
+    file.write(reinterpret_cast<const char*>(&free_head), sizeof(int));
+    file.seekp(OBJECT_COUNT_OFFSET);
+    file.write(reinterpret_cast<const char*>(&object_count), sizeof(int));
 }
 template <class T, int info_len>
 int MemoryRiver<T, info_len>::getNext(int index) {
