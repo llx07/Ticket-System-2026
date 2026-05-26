@@ -22,7 +22,14 @@ class OrderSystem {
 
    private:
     MemoryRiver<Order, 0> orders_dat;
-    BPlusTree<Username, int> order_username_index;
+
+    struct OrderIdx {
+        int key;
+        friend bool operator<(const OrderIdx& lhs, const OrderIdx& rhs) {
+            return lhs.key > rhs.key;
+        }
+    };
+    BPlusTree<Username, OrderIdx> order_username_index;
 
     struct PendingKey {
         TrainID trainID;
@@ -43,31 +50,39 @@ class OrderSystem {
           order_pending_index("order_pending.idx") {}
     void add_order(const Username& username, const Order& order) {
         int order_idx = orders_dat.write(order);
-        order_username_index.insert(username, order_idx);
+        order_username_index.insert(username, OrderIdx{order_idx});
+        if (order.status == OrderStatus::PENDING) {
+            order_pending_index.insert({order.trainID, order.start_date},
+                                      order_idx);
+        }
     }
     sjtu::vector<Order> query_orders(const Username& username) {
-        const sjtu::vector<int>& indexes =
+        const sjtu::vector<OrderIdx>& indexes =
             order_username_index.find_all(username);
         sjtu::vector<Order> result;
         result.reserve(indexes.size());
-        for (int order_idx : indexes) {
+        for (auto order_idx : indexes) {
             Order order;
-            orders_dat.read(order, order_idx);
+            orders_dat.read(order, order_idx.key);
             result.push_back(order);
         }
         return result;
     }
     bool refund_nth_order(const Username& username, int nth,
                           Order& refunded_order) {
-        int order_idx = -1;
-        if (!order_username_index.find_nth(username, nth, order_idx)) {
-
+        OrderIdx order_idx_obj{-1};
+        if (!order_username_index.find_nth(username, nth, order_idx_obj)) {
             return false;
         }
+        int order_idx = order_idx_obj.key;
         orders_dat.read(refunded_order, order_idx);
-        if(refunded_order.status == OrderSystem::OrderStatus::REFUNDED){
+        if (refunded_order.status == OrderSystem::OrderStatus::REFUNDED) {
             return false;
         }
+        auto original_status = refunded_order.status;
+        refunded_order.status = OrderSystem::OrderStatus::REFUNDED;
+        orders_dat.update(refunded_order, order_idx);
+        refunded_order.status = original_status;
         return true;
     }
     sjtu::vector<int> get_pending_orders(const TrainID& trainID, Date date) {
@@ -81,6 +96,7 @@ class OrderSystem {
         orders_dat.read(order, order_idx);
         order.status = OrderStatus::SUCCESS;
         orders_dat.update(order, order_idx);
+        order_pending_index.erase({order.trainID, order.start_date}, order_idx);
     }
 };
 #endif  // TICKET_SYSTEM_ORDER_SYSTEM_HPP

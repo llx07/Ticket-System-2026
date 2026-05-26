@@ -30,10 +30,16 @@ inline sjtu::vector<std::string> split(const std::string &str,
 
 inline int to_int(const std::string &str) {
     int result = 0;
+    bool negative = false;
     for (char c : str) {
-        result = result * 10 + c - '0';
+        if(c=='-'){
+            negative = true;
+        }
+        else {
+            result = result * 10 + c - '0';
+        }
     }
-    return result;
+    return negative ? -result : result;
 }
 
 inline std::string to_string(int value) {

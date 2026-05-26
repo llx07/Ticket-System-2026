@@ -110,6 +110,24 @@ TEST_CASE("find_nth returns the nth value for a key", "[b_plus_tree]") {
     REQUIRE_FALSE(tree.find_nth(8, 1, value));
 }
 
+TEST_CASE("find and find_nth continue to following leaves", "[b_plus_tree]") {
+    TempDb db;
+    BPlusTree<int, int> tree(db.string());
+    int value = -1;
+
+    for (int i = 0; i < 900; ++i) {
+        tree.insert(i * 2, i);
+    }
+
+    REQUIRE(tree.find(900, value));
+    REQUIRE(value == 450);
+    REQUIRE(tree.find_nth(900, 1, value));
+    REQUIRE(value == 450);
+
+    REQUIRE_FALSE(tree.find(901, value));
+    REQUIRE_FALSE(tree.find_nth(901, 1, value));
+}
+
 TEST_CASE("find_all works after leaf splits", "[b_plus_tree]") {
     TempDb db;
     BPlusTree<int, int> tree(db.string());

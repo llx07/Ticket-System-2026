@@ -1,6 +1,7 @@
 #ifndef TICKET_SYSTEM_TRAIN_SYSTEM_HPP
 #define TICKET_SYSTEM_TRAIN_SYSTEM_HPP
 
+#include <iostream>
 #include <string>
 
 #include "common/algorithm.hpp"
@@ -79,6 +80,7 @@ class TrainSystem {
         if (!train_seat_index.find({trainID, date}, idx)) {
             return false;
         }
+        // std::cout << "found, idx = " << idx << std::endl;
         train_seats_dat.read(train_seat, idx);
         return true;
     }
@@ -189,6 +191,8 @@ class TrainSystem {
                 train_seat.seats[i] = train.seat_num;
             }
             int seat_idx = train_seats_dat.write(train_seat);
+            // std::cout << "date = " << format_date(d) << ", idx = " << seat_idx
+            //           << std::endl;
             train_seat_index.insert({trainID, d}, seat_idx);
         }
 

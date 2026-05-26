@@ -668,16 +668,19 @@ class BPlusTree {
             idx = page.children[child];
         }
 
-        LeafPage page = read_page<LeafPage>(idx);
-        for (int i = 0; i < page.size; i++) {
-            if (page.data[i].first < key) {
-                continue;
+        while (idx) {
+            LeafPage page = read_page<LeafPage>(idx);
+            for (int i = 0; i < page.size; i++) {
+                if (page.data[i].first < key) {
+                    continue;
+                }
+                if (key < page.data[i].first) {
+                    return false;
+                }
+                value = page.data[i].second;
+                return true;
             }
-            if (key < page.data[i].first) {
-                return false;
-            }
-            value = page.data[i].second;
-            return true;
+            idx = page.next;
         }
         return false;
     }
@@ -714,19 +717,37 @@ class BPlusTree {
             while (pos < page.size && page.data[pos].first < key) {
                 ++pos;
             }
+            if (pos == page.size) {
+                idx = page.next;
+                pos = 0;
+                continue;
+            }
             if (key < page.data[pos].first) {
                 return false;
             }
 
-            int remain = page.size - pos;
-            if (n > remain) {
-                n -= remain;
-            } else {
-                if (key < page.data[pos + n - 1].first) {
-                    return false;
+            bool page_tail_is_key = !(page.data[page.size - 1].first < key) &&
+                                    !(key < page.data[page.size - 1].first);
+            if (page_tail_is_key) {
+                int remain = page.size - pos;
+                if (n > remain) {
+                    n -= remain;
+                } else {
+                    value = page.data[pos + n - 1].second;
+                    return true;
                 }
-                value = page.data[pos + n - 1].second;
-                return true;
+            } else {
+                while (pos < page.size) {
+                    if (key < page.data[pos].first) {
+                        return false;
+                    }
+                    --n;
+                    if (n == 0) {
+                        value = page.data[pos].second;
+                        return true;
+                    }
+                    ++pos;
+                }
             }
 
             idx = page.next;

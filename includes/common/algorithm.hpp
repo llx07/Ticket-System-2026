@@ -1,3 +1,6 @@
+#ifndef SJTU_ALGORITHM_HPP
+#define SJTU_ALGORITHM_HPP
+
 inline int log2floor(int n) {
     int res = 0;
     while (n) {
@@ -182,3 +185,17 @@ Iterator max_element(Iterator first, Iterator last) {
     return max_element(first, last,
                        [](const auto& x, const auto& y) { return x < y; });
 }
+
+template <typename Iterator>
+void reverse(Iterator first, Iterator last) {
+    while (first < last) {
+        --last;
+        if (!(first < last)) {
+            break;
+        }
+        swap(*first, *last);
+        ++first;
+    }
+}
+
+#endif  // SJTU_ALGORITHM_HPP
