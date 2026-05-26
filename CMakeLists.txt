@@ -58,3 +58,9 @@ add_project_test(list_tests tests/list_test.cpp)
 add_project_test(unordered_map_tests tests/unordered_map_test.cpp)
 add_project_test(parser_tests tests/parser_test.cpp)
 add_project_test(fixed_string_tests tests/fixed_string_test.cpp)
+
+add_test(
+    NAME basic_1_user
+    COMMAND ./run-test basic_1
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
