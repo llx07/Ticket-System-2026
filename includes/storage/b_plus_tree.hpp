@@ -480,8 +480,8 @@ class BPlusTree {
         if (file.is_open()) {
             file.close();
         }
-        file.open(file_name, std::ios::in | std::ios::out |
-                                 std::ios::binary | std::ios::trunc);
+        file.open(file_name, std::ios::in | std::ios::out | std::ios::binary |
+                                 std::ios::trunc);
         metadata = MetaData{};
         write_metadata();
         file.seekg(0, std::ios::end);
@@ -536,9 +536,9 @@ class BPlusTree {
     }
     // erase (key, value) in the tree
     // if (key, value) does not exist before, do nothing
-    void erase(const Key &key, const T &value) {
+    bool erase(const Key &key, const T &value) {
         if (!metadata.root) {
-            return;
+            return false;
         }
 
         auto kv_pair = KeyValuePair{key, value};
@@ -554,7 +554,7 @@ class BPlusTree {
                 update_first_key(path, path_size, leaf_page.data[0]);
             }
         } else if (!erase_val(leaf_page.data, leaf_page.size, kv_pair)) {
-            return;
+            return false;
         }
 
         if (!path_size) {  // Case 1: root
@@ -618,6 +618,8 @@ class BPlusTree {
                 }
             }
         }
+
+        return true;
     }
 
     // find all entries with the given key, sorted by values

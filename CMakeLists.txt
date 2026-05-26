@@ -15,7 +15,7 @@ add_executable(code
 target_include_directories(code PRIVATE
     ${PROJECT_SOURCE_DIR}/includes
 )
-target_compile_options(code PRIVATE -O2)
+# target_compile_options(code PRIVATE -O2)
 
 if(NOT DEFINED ENV{LOCAL_ENV})
     return()

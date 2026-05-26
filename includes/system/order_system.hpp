@@ -58,7 +58,7 @@ class OrderSystem {
         order_username_index.insert(username, OrderIdx{order_idx});
         if (order.status == OrderStatus::PENDING) {
             order_pending_index.insert({order.trainID, order.start_date},
-                                      order_idx);
+                                       order_idx);
         }
     }
     sjtu::vector<Order> query_orders(const Username& username) {
@@ -85,6 +85,10 @@ class OrderSystem {
             return false;
         }
         auto original_status = refunded_order.status;
+        if (original_status == OrderStatus::PENDING) {
+            order_pending_index.erase(
+                {refunded_order.trainID, refunded_order.start_date}, order_idx);
+        }
         refunded_order.status = OrderSystem::OrderStatus::REFUNDED;
         orders_dat.update(refunded_order, order_idx);
         refunded_order.status = original_status;

@@ -1,7 +1,6 @@
 #ifndef TICKET_SYSTEM_TRAIN_SYSTEM_HPP
 #define TICKET_SYSTEM_TRAIN_SYSTEM_HPP
 
-#include <iostream>
 #include <string>
 
 #include "common/algorithm.hpp"
