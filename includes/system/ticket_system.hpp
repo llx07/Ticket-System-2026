@@ -7,6 +7,7 @@
 #include "common/date_time.hpp"
 #include "common/optional.hpp"
 #include "common/parser.hpp"
+#include "common/types.hpp"
 #include "common/util.hpp"
 #include "system/train_system.hpp"
 #include "system/user_system.hpp"
@@ -47,10 +48,10 @@ class TicketSystem {
     }
 
     std::string handle_modify_profile(const Command& cmd) {
-        Optional<UserSystem::Password> password;
-        Optional<UserSystem::Name> name;
-        Optional<UserSystem::MailAddr> mail_addr;
-        Optional<UserSystem::Privilege> privilege;
+        Optional<Password> password;
+        Optional<Name> name;
+        Optional<MailAddr> mail_addr;
+        Optional<Privilege> privilege;
 
         if (cmd.has('p')) {
             password = cmd.arg('p');

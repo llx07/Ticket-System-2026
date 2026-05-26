@@ -1,20 +1,14 @@
 #ifndef TICKET_SYSTEM_USER_SYSTEM_HPP
 #define TICKET_SYSTEM_USER_SYSTEM_HPP
 
-#include "common/fixed_string.hpp"
 #include "common/optional.hpp"
+#include "common/types.hpp"
 #include "containers/map.hpp"
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
 
 class UserSystem {
    public:
-    using Username = FixedString<21>;
-    using Password = FixedString<31>;
-    using Name = FixedString<16>;
-    using MailAddr = FixedString<31>;
-    using Privilege = char;
-
     struct User {
         Username username;
         Password password;

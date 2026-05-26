@@ -5,7 +5,7 @@
 
 #include "common/algorithm.hpp"
 #include "common/date_time.hpp"
-#include "common/fixed_string.hpp"
+#include "common/types.hpp"
 #include "common/util.hpp"
 #include "containers/vector.hpp"
 #include "storage/b_plus_tree.hpp"
@@ -16,9 +16,6 @@ class TrainSystem {
     static constexpr int MAX_STATION = 100;
 
    public:
-    using TrainID = FixedString<21>;
-    using Station = FixedString<31>;
-
     struct Train {
         TrainID trainID;
         int station_num;
