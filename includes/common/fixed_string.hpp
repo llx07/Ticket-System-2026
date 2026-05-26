@@ -9,13 +9,9 @@ struct FixedString {
 
     FixedString() = default;
 
-    FixedString(const std::string &str) {
-        assign(str);
-    }
+    FixedString(const std::string &str) { assign(str); }
 
-    FixedString(const char *str) {
-        assign(str);
-    }
+    FixedString(const char *str) { assign(str); }
 
     void clear() {
         for (int i = 0; i < N; ++i) data[i] = 0;
@@ -45,9 +41,7 @@ struct FixedString {
         return result;
     }
 
-    bool empty() const {
-        return data[0] == 0;
-    }
+    bool empty() const { return data[0] == 0; }
 
     int size() const {
         int len = 0;
@@ -55,17 +49,11 @@ struct FixedString {
         return len;
     }
 
-    const char *c_str() const {
-        return data;
-    }
+    const char *c_str() const { return data; }
 
-    char &operator[](int index) {
-        return data[index];
-    }
+    char &operator[](int index) { return data[index]; }
 
-    const char &operator[](int index) const {
-        return data[index];
-    }
+    const char &operator[](int index) const { return data[index]; }
 
     FixedString &operator=(const std::string &str) {
         assign(str);
@@ -77,9 +65,7 @@ struct FixedString {
         return *this;
     }
 
-    operator std::string() const {
-        return to_string();
-    }
+    operator std::string() const { return to_string(); }
 
     friend bool operator<(const FixedString &lhs, const FixedString &rhs) {
         for (int i = 0; i < N; ++i) {

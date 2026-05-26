@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 
 // A persistent container that stores a POD object, and support storing some
 // extra int info.
@@ -14,13 +15,9 @@
 template <class T, int info_len = 2>
 class MemoryRiver {
    public:
-    MemoryRiver() = default;
-    MemoryRiver(const std::string& _file_name) : file_name(_file_name) {}
+    explicit MemoryRiver(const std::string& _file_name);
     ~MemoryRiver();
 
-    // Initializes MemoryRiver. This function must be called before use of other
-    // functions.
-    void initialise(const std::string& _file_name = "");
     // Gets the value of the n-th info (1-based).
     void getInfo(int& tmp, int n);
     // Writes tmp into the n-th info (1-based).
@@ -66,18 +63,20 @@ class MemoryRiver {
 };
 
 template <class T, int info_len>
-MemoryRiver<T, info_len>::~MemoryRiver() {
-    writeInfo(count, -1);
-    writeInfo(free_head, 0);
-    file.close();
-}
-template <class T, int info_len>
-void MemoryRiver<T, info_len>::initialise(const std::string& _file_name) {
-    if (!_file_name.empty()) file_name = _file_name;
+MemoryRiver<T, info_len>::MemoryRiver(const std::string& _file_name)
+    : file_name(_file_name) {
     if (!std::filesystem::exists(file_name)) {
         initFile();
     }
     openFile();
+}
+template <class T, int info_len>
+MemoryRiver<T, info_len>::~MemoryRiver() {
+    if (file.is_open()) {
+        writeInfo(count, -1);
+        writeInfo(free_head, 0);
+        file.close();
+    }
 }
 template <class T, int info_len>
 void MemoryRiver<T, info_len>::getInfo(int& tmp, int n) {
