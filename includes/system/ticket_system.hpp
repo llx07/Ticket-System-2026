@@ -6,11 +6,13 @@
 #include "common/optional.hpp"
 #include "common/parser.hpp"
 #include "common/util.hpp"
+#include "system/train_system.hpp"
 #include "system/user_system.hpp"
 
 class TicketSystem {
    private:
     UserSystem user_system;
+    TrainSystem train_system;
 
     std::string handle_add_user(const Command& cmd) {
         const bool ok = user_system.add_user(
@@ -68,6 +70,24 @@ class TicketSystem {
         return ok ? format_user_profile(result) : "-1";
     }
 
+    std::string handle_add_train(const Command& cmd) {
+        const bool ok = train_system.add_train(
+            cmd.arg('i'), to_int(cmd.arg('n')), to_int(cmd.arg('m')),
+            cmd.arg('s'), cmd.arg('p'), cmd.arg('x'), cmd.arg('t'),
+            cmd.arg('o'), cmd.arg('d'), cmd.arg('y')[0]);
+        return ok ? "0" : "-1";
+    }
+
+    std::string handle_delete_train(const Command& cmd) {
+        const bool ok = train_system.delete_train(cmd.arg('i'));
+        return ok ? "0" : "-1";
+    }
+
+    std::string handle_release_train(const Command& cmd) {
+        const bool ok = train_system.release_train(cmd.arg('i'));
+        return ok ? "0" : "-1";
+    }
+
    public:
     std::string execute(const Command& cmd) {
         if (cmd.name == "add_user") return handle_add_user(cmd);
@@ -75,6 +95,9 @@ class TicketSystem {
         if (cmd.name == "logout") return handle_logout(cmd);
         if (cmd.name == "query_profile") return handle_query_profile(cmd);
         if (cmd.name == "modify_profile") return handle_modify_profile(cmd);
+        if (cmd.name == "add_train") return handle_add_train(cmd);
+        if (cmd.name == "delete_train") return handle_delete_train(cmd);
+        if (cmd.name == "release_train") return handle_release_train(cmd);
         if (cmd.name == "exit") return "bye";
         return "not_implemented";
     }

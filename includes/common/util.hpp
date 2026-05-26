@@ -5,12 +5,13 @@
 
 #include "containers/vector.hpp"
 
-inline sjtu::vector<std::string> split(const std::string &str) {
+inline sjtu::vector<std::string> split(const std::string &str,
+                                       char delim = ' ') {
     sjtu::vector<std::string> result;
     std::string token;
 
     for (char c : str) {
-        if (c == ' ') {
+        if (c == delim) {
             if (!token.empty()) {
                 result.push_back(token);
                 token.clear();
