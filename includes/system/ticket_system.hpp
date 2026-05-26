@@ -1,8 +1,10 @@
 #ifndef TICKET_SYSTEM_TICKET_SYSTEM_HPP
 #define TICKET_SYSTEM_TICKET_SYSTEM_HPP
 
+#include <iostream>
 #include <string>
 
+#include "common/date_time.hpp"
 #include "common/optional.hpp"
 #include "common/parser.hpp"
 #include "common/util.hpp"
@@ -88,6 +90,41 @@ class TicketSystem {
         return ok ? "0" : "-1";
     }
 
+    std::string format_train(const TrainSystem::Train& train,
+                             const TrainSystem::TrainSeat& train_seat,
+                             const Date& date) {
+        Time start_time = make_time(date, train.start_time);
+        std::string output = train.trainID.to_string() + " " + train.type;
+        for (int i = 0; i < train.station_num; i++) {
+            output += "\n";
+            output += train.stations[i].to_string();
+            output += " ";
+            output +=
+                (i == 0 ? "xx-xx xx:xx"
+                        : format_time(start_time + train.arrive_offsets[i]));
+            output += " -> ";
+            output += (i == train.station_num - 1
+                           ? "xx-xx xx:xx"
+                           : format_time(start_time + train.leave_offsets[i]));
+            output += " ";
+            output += to_string(train.price_prefix[i]);
+            output += " ";
+            output +=
+                (i == train.station_num - 1 ? "x"
+                                            : to_string(train_seat.seats[i]));
+        }
+        return output;
+    }
+
+    std::string handle_query_train(const Command& cmd) {
+        TrainSystem::Train train;
+        TrainSystem::TrainSeat train_seat;
+        Date date = parse_date(cmd.arg('d'));
+        const bool ok =
+            train_system.query_train(cmd.arg('i'), date, train, train_seat);
+        return ok ? format_train(train, train_seat, date) : "-1";
+    }
+
    public:
     std::string execute(const Command& cmd) {
         if (cmd.name == "add_user") return handle_add_user(cmd);
@@ -98,6 +135,7 @@ class TicketSystem {
         if (cmd.name == "add_train") return handle_add_train(cmd);
         if (cmd.name == "delete_train") return handle_delete_train(cmd);
         if (cmd.name == "release_train") return handle_release_train(cmd);
+        if (cmd.name == "query_train") return handle_query_train(cmd);
         if (cmd.name == "exit") return "bye";
         return "not_implemented";
     }

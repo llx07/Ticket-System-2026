@@ -3,14 +3,14 @@
 
 #include <string>
 
-using Day = int;          // 一个特定日期，(06-01 = 0)
+using Date = int;          // 一个特定日期，(06-01 = 0)
 using Time = int;         // 从 06-01 00:00 开始的分钟数
 using Duration = int;     // 持续分钟数
-using MinuteOfDay = int;  // 一天的某一个时刻
+using MinuteOfDate = int;  // 一天的某一个时刻
 
-inline int month_days(int month) {
-    static int days[] = {30, 31, 31};
-    return days[month - 6];
+inline int month_dates(int month) {
+    static int dates[] = {30, 31, 31};
+    return dates[month - 6];
 }
 
 inline std::string two_digits(int value) {
@@ -20,53 +20,57 @@ inline std::string two_digits(int value) {
     return result;
 }
 
-// mm-dd -> Day
-inline Day parse_date(const std::string& str) {
+// mm-dd -> Date
+inline Date parse_date(const std::string& str) {
     const int month = (str[0] - '0') * 10 + (str[1] - '0');
-    const int day = (str[3] - '0') * 10 + (str[4] - '0');
+    const int date = (str[3] - '0') * 10 + (str[4] - '0');
 
-    Day result = 0;
+    Date result = 0;
     for (int m = 6; m < month; ++m) {
-        result += month_days(m);
+        result += month_dates(m);
     }
-    return result + day - 1;
+    return result + date - 1;
 }
 
-// hh:mm -> MinuteOfDay
-inline MinuteOfDay parse_minute_of_day(const std::string& str) {
+// hh:mm -> MinuteOfDate
+inline MinuteOfDate parse_minute_of_date(const std::string& str) {
     const int hour = (str[0] - '0') * 10 + (str[1] - '0');
     const int minute = (str[3] - '0') * 10 + (str[4] - '0');
     return hour * 60 + minute;
 }
 
-inline Time make_time(Day day, MinuteOfDay minute_of_day) {
-    return day * 1440 + minute_of_day;
+inline Time make_time(Date date, MinuteOfDate minute_of_date) {
+    return date * 1440 + minute_of_date;
 }
 
-inline Day get_day(Time time) { return time / 1440; }
+inline Date get_date(Time time) { return time / 1440; }
 
-inline MinuteOfDay get_minute_of_day(Time time) { return time % 1440; }
+inline MinuteOfDate get_minute_of_date(Time time) { return time % 1440; }
 
-inline std::string format_date(Day day) {
+inline std::string format_date(Date date) {
     int month = 6;
-    int date = day + 1;
+    int d = date + 1;
 
-    while (date > month_days(month)) {
-        date -= month_days(month);
+    while (d > month_dates(month)) {
+        d -= month_dates(month);
         ++month;
     }
 
-    return two_digits(month) + "-" + two_digits(date);
+    return two_digits(month) + "-" + two_digits(d);
 }
 
-inline std::string format_minute_of_day(MinuteOfDay minute_of_day) {
-    return two_digits(minute_of_day / 60) + ":" +
-           two_digits(minute_of_day % 60);
+inline std::string format_minute_of_date(MinuteOfDate minute_of_date) {
+    return two_digits(minute_of_date / 60) + ":" +
+           two_digits(minute_of_date % 60);
 }
 
 inline std::string format_time(Time time) {
-    return format_date(get_day(time)) + " " +
-           format_minute_of_day(get_minute_of_day(time));
+    return format_date(get_date(time)) + " " +
+           format_minute_of_date(get_minute_of_date(time));
+}
+
+inline bool in_range(Date start_date, Date end_date, Date cur_date) {
+    return start_date <= cur_date && cur_date <= end_date;
 }
 
 #endif  // TICKET_SYSTEM_DATE_TIME_HPP
