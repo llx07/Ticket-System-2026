@@ -15,11 +15,22 @@ add_executable(code
 target_include_directories(code PRIVATE
     ${PROJECT_SOURCE_DIR}/includes
 )
-# target_compile_options(code PRIVATE -O2)
+target_compile_options(code PRIVATE -O2)
 
 if(NOT DEFINED ENV{LOCAL_ENV})
     return()
 endif()
+
+add_executable(profile
+    src/main.cpp
+)
+
+target_include_directories(profile PRIVATE
+    ${PROJECT_SOURCE_DIR}/includes
+)
+
+target_compile_options(profile PRIVATE -O2 -g -pg)
+target_link_options(profile PRIVATE -pg)
 
 add_executable(test_bpt
     src/test_bpt.cpp
