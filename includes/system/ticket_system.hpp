@@ -1,7 +1,6 @@
 #ifndef TICKET_SYSTEM_TICKET_SYSTEM_HPP
 #define TICKET_SYSTEM_TICKET_SYSTEM_HPP
 
-#include <iostream>
 #include <string>
 
 #include "common/date_time.hpp"
@@ -132,7 +131,7 @@ class TicketSystem {
                                      const std::string& from,
                                      const std::string& to) {
         std::string output;
-        output += result.train_id.to_string();
+        output += result.trainID.to_string();
         output += " ";
         output += from;
         output += " ";
@@ -182,8 +181,8 @@ class TicketSystem {
             return "-1";
         }
 
-        if (!train_system.buy_ticket(trainID, plan.start_date, plan.from_idx,
-                                     plan.to_idx, num)) {
+        if (!train_system.reserve_seats(trainID, plan.start_date, plan.from_idx,
+                                        plan.to_idx, num)) {
             if (!willing_to_queue) {
                 return "-1";
             } else {
@@ -262,18 +261,16 @@ class TicketSystem {
         if (!order_system.refund_nth_order(username, nth, order)) {
             return "-1";
         }
-        if(order.status == OrderSystem::OrderStatus::SUCCESS){
-            train_system.refund_ticket(order.trainID, order.start_date,
-                                    order.from_idx, order.to_idx, order.num);
-            const auto& pending_queue =
-                order_system.get_pending_orders(order.trainID, order.start_date);
+        if (order.status == OrderSystem::OrderStatus::SUCCESS) {
+            train_system.restore_seats(order.trainID, order.start_date,
+                                       order.from_idx, order.to_idx, order.num);
+            const auto& pending_queue = order_system.get_pending_orders(
+                order.trainID, order.start_date);
             for (int order_idx : pending_queue) {
-                if(!order_system.get_order_by_idx(order_idx, order)){
-                    continue;
-                }
-                if (train_system.buy_ticket(order.trainID, order.start_date,
-                                            order.from_idx, order.to_idx,
-                                            order.num)) {
+                order_system.get_order_by_idx(order_idx, order);
+                if (train_system.reserve_seats(order.trainID, order.start_date,
+                                               order.from_idx, order.to_idx,
+                                               order.num)) {
                     order_system.mark_pending_success(order_idx);
                 }
             }

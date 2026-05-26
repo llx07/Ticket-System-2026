@@ -55,12 +55,12 @@ class TrainSystem {
     BPlusTree<TrainSeatKey, int> train_seat_index;
 
     struct TrainRef {
-        int train_idx;
+        int trainIDx;
         int station_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
-            if (lhs.train_idx != rhs.train_idx) {
-                return lhs.train_idx < rhs.train_idx;
+            if (lhs.trainIDx != rhs.trainIDx) {
+                return lhs.trainIDx < rhs.trainIDx;
             }
             return lhs.station_idx < rhs.station_idx;
         }
@@ -203,8 +203,8 @@ class TrainSystem {
 
     bool query_train(const TrainID& trainID, const Date& date, Train& train,
                      TrainSeat& train_seat) {
-        int train_idx = -1;
-        if (!get_train(trainID, train, train_idx)) {
+        int trainIDx = -1;
+        if (!get_train(trainID, train, trainIDx)) {
             return false;
         }
         if (!in_range(train.sale_date[0], train.sale_date[1], date)) {
@@ -223,7 +223,7 @@ class TrainSystem {
     }
 
     struct TicketResult {
-        TrainID train_id;
+        TrainID trainID;
         Time leaving_time;
         Time arriving_time;
         int price;
@@ -237,7 +237,7 @@ class TrainSystem {
         auto refs = train_station_index.find_all(from);
         for (const TrainRef& ref : refs) {
             Train train;
-            trains_dat.read(train, ref.train_idx);
+            trains_dat.read(train, ref.trainIDx);
             int from_idx = ref.station_idx;
             int to_idx =
                 static_cast<int>(find(train.stations + from_idx + 1,
@@ -263,8 +263,9 @@ class TrainSystem {
 
             Time train_start_time = make_time(start_date, train.start_time);
             results.push_back(
-                {.train_id = train.trainID,
-                 .leaving_time = train_start_time + train.leave_offsets[from_idx],
+                {.trainID = train.trainID,
+                 .leaving_time =
+                     train_start_time + train.leave_offsets[from_idx],
                  .arriving_time =
                      train_start_time + train.arrive_offsets[to_idx],
                  .price =
@@ -279,17 +280,19 @@ class TrainSystem {
                      if (lhs.price != rhs.price) {
                          return lhs.price < rhs.price;
                      }
-                     return lhs.train_id < rhs.train_id;
+                     return lhs.trainID < rhs.trainID;
                  });
         } else {
             sort(results.begin(), results.end(),
                  [](const TicketResult& lhs, const TicketResult& rhs) {
-                     Duration lhs_duration = lhs.arriving_time - lhs.leaving_time;
-                     Duration rhs_duration = rhs.arriving_time - rhs.leaving_time;
+                     Duration lhs_duration =
+                         lhs.arriving_time - lhs.leaving_time;
+                     Duration rhs_duration =
+                         rhs.arriving_time - rhs.leaving_time;
                      if (lhs_duration != rhs_duration) {
                          return lhs_duration < rhs_duration;
                      }
-                     return lhs.train_id < rhs.train_id;
+                     return lhs.trainID < rhs.trainID;
                  });
         }
         return results;
@@ -303,18 +306,75 @@ class TrainSystem {
         int to_idx;
         int unit_price;
     };
-    bool check_ticket(const TrainID& train_id, const Date& depart_date,
+    bool check_ticket(const TrainID& trainID, const Date& depart_date,
                       const Station& from, const Station& to, TicketPlan& out) {
-        // TODO
+        Train train;
+        int trainIDx = -1;
+        if (!get_train(trainID, train, trainIDx)) {
+            return false;
+        }
+        int from_idx = static_cast<int>(
+            find(train.stations, train.stations + train.station_num, from) -
+            train.stations);
+        if (from_idx == train.station_num) {
+            return false;
+        }
+        int to_idx =
+            static_cast<int>(find(train.stations + from_idx + 1,
+                                  train.stations + train.station_num, to) -
+                             train.stations);
+        if (to_idx == train.station_num) {
+            return false;
+        }
+
+        Date start_date =
+            depart_date -
+            (train.start_time + train.leave_offsets[from_idx]) / 1440;
+        if (!in_range(train.sale_date[0], train.sale_date[1], start_date)) {
+            return false;
+        }
+        Time train_start_time = make_time(start_date, train.start_time);
+        out = {.start_date = start_date,
+               .leaving_time = train_start_time + train.leave_offsets[from_idx],
+               .arriving_time = train_start_time + train.arrive_offsets[to_idx],
+               .from_idx = from_idx,
+               .to_idx = to_idx,
+               .unit_price =
+                   train.price_prefix[to_idx] - train.price_prefix[from_idx]};
+        return true;
     }
 
-    bool buy_ticket(const TrainID& train_id, const Date& start_date,
-                    int from_idx, int to_idx, int num) {
-        // TODO
-    }
-    void refund_ticket(const TrainID& train_id, const Date& start_date,
+    // reserve num seats. return false if seat is not enough
+    bool reserve_seats(const TrainID& trainID, const Date& start_date,
                        int from_idx, int to_idx, int num) {
-        // TODO
+        TrainSeat seat;
+        int seat_idx = -1;
+        if (!get_train_seat(trainID, start_date, seat, seat_idx)) {
+            return false;
+        }
+        int available_seats =
+            *min_element(seat.seats + from_idx, seat.seats + to_idx);
+        if (available_seats < num) {
+            return false;
+        }
+
+        for (int i = from_idx; i < to_idx; i++) {
+            seat.seats[i] -= num;
+        }
+        train_seats_dat.update(seat, seat_idx);
+        return true;
+    }
+    void restore_seats(const TrainID& trainID, const Date& start_date,
+                       int from_idx, int to_idx, int num) {
+        TrainSeat seat;
+        int seat_idx = -1;
+        if (!get_train_seat(trainID, start_date, seat, seat_idx)) {
+            return;
+        }
+        for (int i = from_idx; i < to_idx; i++) {
+            seat.seats[i] += num;
+        }
+        train_seats_dat.update(seat, seat_idx);
     }
 };
 
