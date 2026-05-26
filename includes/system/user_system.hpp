@@ -28,20 +28,11 @@ class UserSystem {
     BPlusTree<Username, int> username_index;
     sjtu::map<Username, bool> online;
 
-    bool get_user(const Username& username, User& user) {
-        int idx = -1;
+    bool get_user(const Username& username, User& user, int& idx) {
         if (!username_index.find(username, idx)) {
             return false;
         }
         users_dat.read(user, idx);
-        return true;
-    }
-    bool write_user(const Username& username, const User& user) {
-        int idx = -1;
-        if (!username_index.find(username, idx)) {
-            return false;
-        }
-        users_dat.update(user, idx);
         return true;
     }
     bool is_online(const Username& username) {
@@ -66,7 +57,7 @@ class UserSystem {
             }
 
             User cur_user;
-            get_user(cur_username, cur_user);
+            get_user(cur_username, cur_user, idx);
             if (cur_user.privilege <= privilege) {
                 return false;
             }
@@ -85,7 +76,8 @@ class UserSystem {
 
     bool login(const Username& username, const Password& passsword) {
         User user;
-        if (!get_user(username, user)) {
+        int idx = -1;
+        if (!get_user(username, user, idx)) {
             return false;
         }
         if (is_online(username)) {
@@ -112,10 +104,12 @@ class UserSystem {
             return false;
         }
         User cur_user;
-        if (!get_user(cur_username, cur_user)) {
+        int cur_idx = -1;
+        if (!get_user(cur_username, cur_user, cur_idx)) {
             return false;
         }
-        if (!get_user(username, result)) {
+        int result_idx = -1;
+        if (!get_user(username, result, result_idx)) {
             return false;
         }
 
@@ -136,10 +130,12 @@ class UserSystem {
             return false;
         }
         User cur_user;
-        if (!get_user(cur_username, cur_user)) {
+        int cur_idx = -1;
+        if (!get_user(cur_username, cur_user, cur_idx)) {
             return false;
         }
-        if (!get_user(username, result)) {
+        int result_idx = -1;
+        if (!get_user(username, result, result_idx)) {
             return false;
         }
         if (!(result.privilege < cur_user.privilege ||
@@ -162,7 +158,7 @@ class UserSystem {
         if (privilege) {
             result.privilege = *privilege;
         }
-        write_user(username, result);
+        users_dat.update(result, result_idx);
         return true;
     }
 };
