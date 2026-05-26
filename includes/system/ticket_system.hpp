@@ -9,6 +9,7 @@
 #include "common/parser.hpp"
 #include "common/types.hpp"
 #include "common/util.hpp"
+#include "system/order_system.hpp"
 #include "system/train_system.hpp"
 #include "system/user_system.hpp"
 
@@ -16,6 +17,7 @@ class TicketSystem {
    private:
     UserSystem user_system;
     TrainSystem train_system;
+    OrderSystem order_system;
 
     std::string handle_add_user(const Command& cmd) {
         const bool ok = user_system.add_user(
@@ -134,7 +136,7 @@ class TicketSystem {
         output += " ";
         output += from;
         output += " ";
-        output += format_time(result.leave_time);
+        output += format_time(result.leaving_time);
         output += " -> ";
         output += to;
         output += " ";
@@ -145,6 +147,7 @@ class TicketSystem {
         output += to_string(result.seat);
         return output;
     }
+
     std::string handle_query_ticket(const Command& cmd) {
         Date date = parse_date(cmd.arg('d'));
         const auto& results =
@@ -159,6 +162,125 @@ class TicketSystem {
         return output;
     }
 
+    // TODO query_transfer
+
+    std::string handle_buy_ticket(const Command& cmd) {
+        Username username = cmd.arg('u');
+        if (!user_system.is_online(username)) {
+            return "-1";
+        }
+        TrainID trainID = cmd.arg('i');
+        Station from = cmd.arg('f');
+        Station to = cmd.arg('t');
+        int num = to_int(cmd.arg('n'));
+
+        bool willing_to_queue = cmd.has('q') && cmd.arg('q') == "true";
+
+        TrainSystem::TicketPlan plan;
+        if (!train_system.check_ticket(trainID, parse_date(cmd.arg('d')), from,
+                                       to, plan)) {
+            return "-1";
+        }
+
+        if (!train_system.buy_ticket(trainID, plan.start_date, plan.from_idx,
+                                     plan.to_idx, num)) {
+            if (!willing_to_queue) {
+                return "-1";
+            } else {
+                order_system.add_order(
+                    username, {.status = OrderSystem::OrderStatus::PENDING,
+                               .trainID = trainID,
+                               .from = from,
+                               .to = to,
+                               .from_idx = plan.from_idx,
+                               .to_idx = plan.to_idx,
+                               .start_date = plan.start_date,
+                               .leaving_time = plan.leaving_time,
+                               .arriving_time = plan.arriving_time,
+                               .price = plan.unit_price,
+                               .num = num});
+                return "queue";
+            }
+        }
+
+        order_system.add_order(username,
+                               {.status = OrderSystem::OrderStatus::SUCCESS,
+                                .trainID = trainID,
+                                .from = from,
+                                .to = to,
+                                .from_idx = plan.from_idx,
+                                .to_idx = plan.to_idx,
+                                .start_date = plan.start_date,
+                                .leaving_time = plan.leaving_time,
+                                .arriving_time = plan.arriving_time,
+                                .price = plan.unit_price,
+                                .num = num});
+        return to_string(plan.unit_price * num);
+    }
+
+    std::string handle_query_order(const Command& cmd) {
+        Username username = cmd.arg('u');
+        if (!user_system.is_online(username)) {
+            return "-1";
+        }
+        const auto orders = order_system.query_orders(username);
+        std::string output;
+        output += to_string(static_cast<int>(orders.size()));
+        for (const auto& order : orders) {
+            output += "\n[";
+            if (order.status == OrderSystem::OrderStatus::PENDING)
+                output += "pending";
+            else if (order.status == OrderSystem::OrderStatus::SUCCESS)
+                output += "success";
+            else if (order.status == OrderSystem::OrderStatus::REFUNDED)
+                output += "refunded";
+            output += "] ";
+            output += order.trainID;
+            output += " ";
+            output += order.from;
+            output += " ";
+            output += format_time(order.leaving_time);
+            output += " -> ";
+            output += order.to;
+            output += " ";
+            output += format_time(order.arriving_time);
+            output += " ";
+            output += to_string(order.price);
+            output += " ";
+            output += to_string(order.num);
+        }
+        return output;
+    }
+
+    std::string handle_refund_ticket(const Command& cmd) {
+        Username username = cmd.arg('u');
+        if (!user_system.is_online(username)) {
+            return "-1";
+        }
+        int nth = cmd.has('n') ? to_int(cmd.arg('n')) : 1;
+        OrderSystem::Order order;
+        if (!order_system.refund_nth_order(username, nth, order)) {
+            return "-1";
+        }
+        if(order.status == OrderSystem::OrderStatus::SUCCESS){
+            train_system.refund_ticket(order.trainID, order.start_date,
+                                    order.from_idx, order.to_idx, order.num);
+            const auto& pending_queue =
+                order_system.get_pending_orders(order.trainID, order.start_date);
+            for (int order_idx : pending_queue) {
+                if(!order_system.get_order_by_idx(order_idx, order)){
+                    continue;
+                }
+                if (train_system.buy_ticket(order.trainID, order.start_date,
+                                            order.from_idx, order.to_idx,
+                                            order.num)) {
+                    order_system.mark_pending_success(order_idx);
+                }
+            }
+        }
+        return "0";
+    }
+
    public:
     std::string execute(const Command& cmd) {
         if (cmd.name == "add_user") return handle_add_user(cmd);
@@ -170,7 +292,9 @@ class TicketSystem {
         if (cmd.name == "delete_train") return handle_delete_train(cmd);
         if (cmd.name == "release_train") return handle_release_train(cmd);
         if (cmd.name == "query_train") return handle_query_train(cmd);
-        if (cmd.name == "query_ticket") return handle_query_ticket(cmd);
+        if (cmd.name == "buy_ticket") return handle_buy_ticket(cmd);
+        if (cmd.name == "query_order") return handle_query_order(cmd);
+        if (cmd.name == "refund_ticket") return handle_refund_ticket(cmd);
         if (cmd.name == "exit") return "bye";
         return "not_implemented";
     }

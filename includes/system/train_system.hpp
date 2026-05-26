@@ -224,15 +224,15 @@ class TrainSystem {
 
     struct TicketResult {
         TrainID train_id;
-        Time leave_time;
+        Time leaving_time;
         Time arriving_time;
         int price;
         int seat;
     };
 
-    sjtu::vector<TicketResult> query_ticket(
-        const Station& from, const Station& to, const Date& date,
-        const std::string& sorting_policy) {
+    sjtu::vector<TicketResult> query_ticket(const Station& from,
+                                            const Station& to, const Date& date,
+                                            const std::string& sorting_policy) {
         sjtu::vector<TicketResult> results;
         auto refs = train_station_index.find_all(from);
         for (const TrainRef& ref : refs) {
@@ -264,7 +264,7 @@ class TrainSystem {
             Time train_start_time = make_time(start_date, train.start_time);
             results.push_back(
                 {.train_id = train.trainID,
-                 .leave_time = train_start_time + train.leave_offsets[from_idx],
+                 .leaving_time = train_start_time + train.leave_offsets[from_idx],
                  .arriving_time =
                      train_start_time + train.arrive_offsets[to_idx],
                  .price =
@@ -274,27 +274,47 @@ class TrainSystem {
         }
 
         if (sorting_policy == "cost") {
-            sort(
-                results.begin(), results.end(),
-                [](const TicketResult& lhs, const TicketResult& rhs) {
-                    if (lhs.price != rhs.price) {
-                        return lhs.price < rhs.price;
-                    }
-                    return lhs.train_id < rhs.train_id;
-                });
+            sort(results.begin(), results.end(),
+                 [](const TicketResult& lhs, const TicketResult& rhs) {
+                     if (lhs.price != rhs.price) {
+                         return lhs.price < rhs.price;
+                     }
+                     return lhs.train_id < rhs.train_id;
+                 });
         } else {
-            sort(
-                results.begin(), results.end(),
-                [](const TicketResult& lhs, const TicketResult& rhs) {
-                    Duration lhs_duration = lhs.arriving_time - lhs.leave_time;
-                    Duration rhs_duration = rhs.arriving_time - rhs.leave_time;
-                    if (lhs_duration != rhs_duration) {
-                        return lhs_duration < rhs_duration;
-                    }
-                    return lhs.train_id < rhs.train_id;
-                });
+            sort(results.begin(), results.end(),
+                 [](const TicketResult& lhs, const TicketResult& rhs) {
+                     Duration lhs_duration = lhs.arriving_time - lhs.leaving_time;
+                     Duration rhs_duration = rhs.arriving_time - rhs.leaving_time;
+                     if (lhs_duration != rhs_duration) {
+                         return lhs_duration < rhs_duration;
+                     }
+                     return lhs.train_id < rhs.train_id;
+                 });
         }
         return results;
+    }
+
+    struct TicketPlan {
+        Date start_date;
+        Time leaving_time;
+        Time arriving_time;
+        int from_idx;
+        int to_idx;
+        int unit_price;
+    };
+    bool check_ticket(const TrainID& train_id, const Date& depart_date,
+                      const Station& from, const Station& to, TicketPlan& out) {
+        // TODO
+    }
+
+    bool buy_ticket(const TrainID& train_id, const Date& start_date,
+                    int from_idx, int to_idx, int num) {
+        // TODO
+    }
+    void refund_ticket(const TrainID& train_id, const Date& start_date,
+                       int from_idx, int to_idx, int num) {
+        // TODO
     }
 };
 

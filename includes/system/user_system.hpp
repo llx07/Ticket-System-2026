@@ -29,13 +29,13 @@ class UserSystem {
         users_dat.read(user, idx);
         return true;
     }
-    bool is_online(const Username& username) {
-        return online.find(username) != online.end();
-    }
 
    public:
     UserSystem() : users_dat("users.dat"), username_index("username.idx") {}
 
+    bool is_online(const Username& username) {
+        return online.find(username) != online.end();
+    }
     bool add_user(const Username& cur_username, const Username& username,
                   const Password& password, const Name& name,
                   const MailAddr& mail_addr, Privilege privilege) {
