@@ -668,19 +668,69 @@ class BPlusTree {
             idx = page.children[child];
         }
 
+        LeafPage page = read_page<LeafPage>(idx);
+        for (int i = 0; i < page.size; i++) {
+            if (page.data[i].first < key) {
+                continue;
+            }
+            if (key < page.data[i].first) {
+                return false;
+            }
+            value = page.data[i].second;
+            return true;
+        }
+        return false;
+    }
+
+    // find the nth value with the given key, 1-based
+    bool find_nth(const Key &key, int n, T &value) {
+        if (!metadata.root || n <= 0) {
+            return false;
+        }
+
+        int idx = metadata.root;
+        while (true) {
+            InternalPage page = read_page<InternalPage>(idx);
+            if (page.is_leaf) {
+                break;
+            }
+            int left = 0, right = page.size;
+            while (left < right) {
+                int mid = (left + right) / 2;
+                if (page.data[mid].first < key) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            }
+            int child = left;
+            idx = page.children[child];
+        }
+
+        int pos = 0;
         while (idx) {
             LeafPage page = read_page<LeafPage>(idx);
-            for (int i = 0; i < page.size; i++) {
-                if (page.data[i].first < key) {
-                    continue;
-                }
-                if (key < page.data[i].first) {
+
+            while (pos < page.size && page.data[pos].first < key) {
+                ++pos;
+            }
+            if (key < page.data[pos].first) {
+                return false;
+            }
+
+            int remain = page.size - pos;
+            if (n > remain) {
+                n -= remain;
+            } else {
+                if (key < page.data[pos + n - 1].first) {
                     return false;
                 }
-                value = page.data[i].second;
+                value = page.data[pos + n - 1].second;
                 return true;
             }
+
             idx = page.next;
+            pos = 0;
         }
         return false;
     }

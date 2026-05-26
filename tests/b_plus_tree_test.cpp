@@ -84,6 +84,32 @@ TEST_CASE("find returns the first value for a key", "[b_plus_tree]") {
     REQUIRE_FALSE(tree.find(7, value));
 }
 
+TEST_CASE("find_nth returns the nth value for a key", "[b_plus_tree]") {
+    TempDb db;
+    BPlusTree<int, int> tree(db.string());
+    int value = -1;
+
+    REQUIRE_FALSE(tree.find_nth(7, 1, value));
+
+    tree.insert(7, 30);
+    tree.insert(7, 10);
+    tree.insert(7, 20);
+    tree.insert(3, 300);
+    tree.insert(9, 900);
+
+    REQUIRE(tree.find_nth(7, 1, value));
+    REQUIRE(value == 10);
+    REQUIRE(tree.find_nth(7, 2, value));
+    REQUIRE(value == 20);
+    REQUIRE(tree.find_nth(7, 3, value));
+    REQUIRE(value == 30);
+
+    REQUIRE_FALSE(tree.find_nth(7, 0, value));
+    REQUIRE_FALSE(tree.find_nth(7, -1, value));
+    REQUIRE_FALSE(tree.find_nth(7, 4, value));
+    REQUIRE_FALSE(tree.find_nth(8, 1, value));
+}
+
 TEST_CASE("find_all works after leaf splits", "[b_plus_tree]") {
     TempDb db;
     BPlusTree<int, int> tree(db.string());
