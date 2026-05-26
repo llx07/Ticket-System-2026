@@ -287,6 +287,13 @@ class TicketSystem {
         return "0";
     }
 
+    std::string handle_clean() {
+        user_system.clean();
+        train_system.clean();
+        order_system.clean();
+        return "0";
+    }
+
    public:
     std::string execute(const Command& cmd) {
         if (cmd.name == "add_user") return handle_add_user(cmd);
@@ -303,6 +310,7 @@ class TicketSystem {
         if (cmd.name == "buy_ticket") return handle_buy_ticket(cmd);
         if (cmd.name == "query_order") return handle_query_order(cmd);
         if (cmd.name == "refund_ticket") return handle_refund_ticket(cmd);
+        if (cmd.name == "clean") return handle_clean();
         if (cmd.name == "exit") return "bye";
         return "not_implemented";
     }

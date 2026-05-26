@@ -101,6 +101,14 @@ class TrainSystem {
           train_seat_index("train_seat.idx"),
           train_station_index("train_station.idx") {}
 
+    void clean() {
+        trains_dat.clean();
+        train_index.clean();
+        train_seats_dat.clean();
+        train_seat_index.clean();
+        train_station_index.clean();
+    }
+
     bool add_train(const TrainID& trainID, int station_num, int seat_num,
                    const std::string& stations_str,
                    const std::string& prices_str,

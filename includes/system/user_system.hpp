@@ -33,6 +33,12 @@ class UserSystem {
    public:
     UserSystem() : users_dat("users.dat"), username_index("username.idx") {}
 
+    void clean() {
+        users_dat.clean();
+        username_index.clean();
+        online.clear();
+    }
+
     bool is_online(const Username& username) {
         return online.find(username) != online.end();
     }

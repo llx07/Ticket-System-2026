@@ -43,6 +43,8 @@ class MemoryRiver {
     void erase(int index);
     // Returns the number of objects currently stored.
     int size() const;
+    // Clears all data and keeps the file ready for future operations.
+    void clean();
 
    private:
     int count = 0;
@@ -150,6 +152,17 @@ void MemoryRiver<T, info_len>::erase(const int index) {
 template <class T, int info_len>
 int MemoryRiver<T, info_len>::size() const {
     return object_count;
+}
+template <class T, int info_len>
+void MemoryRiver<T, info_len>::clean() {
+    if (file.is_open()) {
+        file.close();
+    }
+    count = 0;
+    free_head = 0;
+    object_count = 0;
+    initFile();
+    openFile();
 }
 
 template <class T, int info_len>

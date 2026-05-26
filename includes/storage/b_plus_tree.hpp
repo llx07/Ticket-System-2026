@@ -63,6 +63,7 @@ class BPlusTree {
 
     std::fstream file;
     std::streamoff file_size;
+    std::string file_name;
 
     static constexpr int CACHE_SIZE = 256;
 
@@ -444,14 +445,14 @@ class BPlusTree {
     }
 
    public:
-    explicit BPlusTree(const std::string &filename) {
-        if (std::filesystem::exists(filename)) {
-            file.open(filename,
+    explicit BPlusTree(const std::string &filename) : file_name(filename) {
+        if (std::filesystem::exists(file_name)) {
+            file.open(file_name,
                       std::ios::in | std::ios::out | std::ios::binary);
             read_metadata();
         } else {
-            file.open(filename, std::ios::in | std::ios::out |
-                                    std::ios::binary | std::ios::trunc);
+            file.open(file_name, std::ios::in | std::ios::out |
+                                     std::ios::binary | std::ios::trunc);
             metadata = MetaData{};
             write_metadata();
         }
@@ -468,6 +469,24 @@ class BPlusTree {
 
     BPlusTree(const BPlusTree &) = delete;
     BPlusTree &operator=(const BPlusTree &) = delete;
+
+    void clean() {
+        for (int idx : lru) {
+            flush_page(slot[idx]);
+        }
+        lru.clear();
+        slot.clear();
+        it_pos.clear();
+        if (file.is_open()) {
+            file.close();
+        }
+        file.open(file_name, std::ios::in | std::ios::out |
+                                 std::ios::binary | std::ios::trunc);
+        metadata = MetaData{};
+        write_metadata();
+        file.seekg(0, std::ios::end);
+        file_size = file.tellg();
+    }
 
     // insert (key, value) in to tree
     // requirement: (key, value) does not exist

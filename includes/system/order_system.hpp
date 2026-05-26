@@ -48,6 +48,11 @@ class OrderSystem {
         : orders_dat("orders.dat"),
           order_username_index("order_username.idx"),
           order_pending_index("order_pending.idx") {}
+    void clean() {
+        orders_dat.clean();
+        order_username_index.clean();
+        order_pending_index.clean();
+    }
     void add_order(const Username& username, const Order& order) {
         int order_idx = orders_dat.write(order);
         order_username_index.insert(username, OrderIdx{order_idx});
