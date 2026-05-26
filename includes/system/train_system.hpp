@@ -235,6 +235,17 @@ class TrainSystem {
         int seat;
     };
 
+    int query_seat(const TrainID& trainID, const Date& start_date,
+                   int from_idx, int to_idx) {
+        TrainSeat train_seat;
+        int seat_idx = -1;
+        if (!get_train_seat(trainID, start_date, train_seat, seat_idx)) {
+            return 0;
+        }
+        return *min_element(train_seat.seats + from_idx,
+                            train_seat.seats + to_idx);
+    }
+
     sjtu::vector<TicketResult> query_ticket(const Station& from,
                                             const Station& to, const Date& date,
                                             const std::string& sorting_policy) {
@@ -259,13 +270,6 @@ class TrainSystem {
                 continue;
             }
 
-            TrainSeat train_seat;
-            int seat_idx = -1;
-            if (!get_train_seat(train.trainID, start_date, train_seat,
-                                seat_idx)) {
-                continue;
-            }
-
             Time train_start_time = make_time(start_date, train.start_time);
             results.push_back(
                 {.trainID = train.trainID,
@@ -277,8 +281,8 @@ class TrainSystem {
                      train_start_time + train.arrive_offsets[to_idx],
                  .price =
                      train.price_prefix[to_idx] - train.price_prefix[from_idx],
-                 .seat = *min_element(train_seat.seats + from_idx,
-                                      train_seat.seats + to_idx)});
+                 .seat = query_seat(train.trainID, start_date, from_idx,
+                                    to_idx)});
         }
 
         if (sorting_policy == "cost") {
@@ -311,6 +315,12 @@ class TrainSystem {
         bool has_result = false;
         Duration best_duration = 0;
         int best_price = 0;
+        Date best_first_start_date = 0;
+        Date best_second_start_date = 0;
+        int best_first_from_idx = 0;
+        int best_first_to_idx = 0;
+        int best_second_from_idx = 0;
+        int best_second_to_idx = 0;
 
         auto first_refs = train_station_index.find_all(from);
         for (const TrainRef& first_ref : first_refs) {
@@ -327,15 +337,11 @@ class TrainSystem {
                 continue;
             }
 
-            TrainSeat first_seat;
-            int first_seat_idx = -1;
-            if (!get_train_seat(first_train.trainID, first_start_date,
-                                first_seat, first_seat_idx)) {
-                continue;
-            }
-
             Time first_train_start_time =
                 make_time(first_start_date, first_train.start_time);
+            Time first_leaving_time =
+                first_train_start_time +
+                first_train.leave_offsets[first_from_idx];
 
             for (int first_to_idx = first_from_idx + 1;
                  first_to_idx < first_train.station_num; ++first_to_idx) {
@@ -343,18 +349,29 @@ class TrainSystem {
                 Time transfer_arriving_time =
                     first_train_start_time +
                     first_train.arrive_offsets[first_to_idx];
+                int first_price = first_train.price_prefix[first_to_idx] -
+                                  first_train.price_prefix[first_from_idx];
+                Duration first_duration =
+                    transfer_arriving_time - first_leaving_time;
+
+                if (has_result) {
+                    if (sorting_policy == "cost") {
+                        if (first_price > best_price) {
+                            break;
+                        }
+                    } else if (first_duration > best_duration) {
+                        break;
+                    }
+                }
 
                 TicketResult cur_first = {
                     .trainID = first_train.trainID,
                     .from = from,
                     .to = transfer_station,
-                    .leaving_time = first_train_start_time +
-                                    first_train.leave_offsets[first_from_idx],
+                    .leaving_time = first_leaving_time,
                     .arriving_time = transfer_arriving_time,
-                    .price = first_train.price_prefix[first_to_idx] -
-                             first_train.price_prefix[first_from_idx],
-                    .seat = *min_element(first_seat.seats + first_from_idx,
-                                         first_seat.seats + first_to_idx)};
+                    .price = first_price,
+                    .seat = 0};
 
                 auto second_refs =
                     train_station_index.find_all(transfer_station);
@@ -390,13 +407,6 @@ class TrainSystem {
                         continue;
                     }
 
-                    TrainSeat second_seat;
-                    int second_seat_idx = -1;
-                    if (!get_train_seat(second_train.trainID, second_start_date,
-                                        second_seat, second_seat_idx)) {
-                        continue;
-                    }
-
                     Time second_train_start_time =
                         make_time(second_start_date, second_train.start_time);
                     TicketResult cur_second = {
@@ -411,9 +421,7 @@ class TrainSystem {
                             second_train.arrive_offsets[second_to_idx],
                         .price = second_train.price_prefix[second_to_idx] -
                                  second_train.price_prefix[second_from_idx],
-                        .seat =
-                            *min_element(second_seat.seats + second_from_idx,
-                                         second_seat.seats + second_to_idx)};
+                        .seat = 0};
 
                     Duration cur_duration =
                         cur_second.arriving_time - cur_first.leaving_time;
@@ -451,9 +459,22 @@ class TrainSystem {
                         best_price = cur_price;
                         first_leg = cur_first;
                         second_leg = cur_second;
+                        best_first_start_date = first_start_date;
+                        best_second_start_date = second_start_date;
+                        best_first_from_idx = first_from_idx;
+                        best_first_to_idx = first_to_idx;
+                        best_second_from_idx = second_from_idx;
+                        best_second_to_idx = second_to_idx;
                     }
                 }
             }
+        }
+        if (has_result) {
+            first_leg.seat = query_seat(first_leg.trainID, best_first_start_date,
+                                        best_first_from_idx, best_first_to_idx);
+            second_leg.seat =
+                query_seat(second_leg.trainID, best_second_start_date,
+                           best_second_from_idx, best_second_to_idx);
         }
         return has_result;
     }
