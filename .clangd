@@ -1,5 +1,7 @@
 CompileFlags:
   CompilationDatabase: build
+  Add:
+    - -I/home/llx-wsl/acm/Ticket-System-2026/includes 
 
 Diagnostics:
   ClangTidy:
