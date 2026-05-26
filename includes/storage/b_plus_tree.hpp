@@ -97,7 +97,7 @@ class BPlusTree {
 
         int s;
         if (lru.size() < CACHE_SIZE) {
-            s = lru.size();
+            s = static_cast<int>(lru.size());
         } else {
             int victim = lru.back();
             lru.pop_back();

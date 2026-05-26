@@ -1,7 +1,6 @@
 #ifndef SJTU_UNORDERED_MAP_HPP
 #define SJTU_UNORDERED_MAP_HPP
 
-
 #include "exceptions.hpp"
 #include "utility.hpp"
 
@@ -13,9 +12,9 @@ class hash;
 template <>
 class hash<int> {
    public:
-    size_t operator()(const int &value) const {   
+    size_t operator()(const int &value) const {
         size_t k = static_cast<size_t>(value);
-    
+
         k ^= k << 13;
         k ^= k >> 17;
         k ^= k << 5;
@@ -164,7 +163,8 @@ class unordered_map {
         if (it != end()) {
             return pair<iterator, bool>(it, false);
         }
-        if ((sz + 1.0) / bucket_cnt > LOAD_FACTOR) {
+        if ((static_cast<double>(sz) + 1.0) / static_cast<double>(bucket_cnt) >
+            LOAD_FACTOR) {
             rehash();
         }
         size_t idx = bucket_index(value.first);

@@ -19,7 +19,7 @@ class TicketSystem {
     std::string handle_add_user(const Command& cmd) {
         const bool ok = user_system.add_user(
             cmd.arg('c'), cmd.arg('u'), cmd.arg('p'), cmd.arg('n'),
-            cmd.arg('m'), to_int(cmd.arg('g')));
+            cmd.arg('m'), static_cast<char>(to_int(cmd.arg('g'))));
         return ok ? "0" : "-1";
     }
 
@@ -62,7 +62,7 @@ class TicketSystem {
             mail_addr = cmd.arg('m');
         }
         if (cmd.has('g')) {
-            privilege = to_int(cmd.arg('g'));
+            privilege = static_cast<char>(to_int(cmd.arg('g')));
         }
 
         UserSystem::User result;
@@ -125,6 +125,39 @@ class TicketSystem {
         return ok ? format_train(train, train_seat, date) : "-1";
     }
 
+    std::string format_ticket_result(const TrainSystem::TicketResult& result,
+                                     const std::string& from,
+                                     const std::string& to) {
+        std::string output;
+        output += result.train_id.to_string();
+        output += " ";
+        output += from;
+        output += " ";
+        output += format_time(result.leave_time);
+        output += " -> ";
+        output += to;
+        output += " ";
+        output += format_time(result.arriving_time);
+        output += " ";
+        output += to_string(result.price);
+        output += " ";
+        output += to_string(result.seat);
+        return output;
+    }
+    std::string handle_query_ticket(const Command& cmd) {
+        Date date = parse_date(cmd.arg('d'));
+        const auto& results =
+            train_system.query_ticket(cmd.arg('s'), cmd.arg('t'), date,
+                                      cmd.has('p') ? cmd.arg('p') : "time");
+        std::string output;
+        output += to_string(static_cast<int>(results.size()));
+        for (const auto& result : results) {
+            output +=
+                '\n' + format_ticket_result(result, cmd.arg('s'), cmd.arg('t'));
+        }
+        return output;
+    }
+
    public:
     std::string execute(const Command& cmd) {
         if (cmd.name == "add_user") return handle_add_user(cmd);
@@ -136,6 +169,7 @@ class TicketSystem {
         if (cmd.name == "delete_train") return handle_delete_train(cmd);
         if (cmd.name == "release_train") return handle_release_train(cmd);
         if (cmd.name == "query_train") return handle_query_train(cmd);
+        if (cmd.name == "query_ticket") return handle_query_ticket(cmd);
         if (cmd.name == "exit") return "bye";
         return "not_implemented";
     }

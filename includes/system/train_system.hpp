@@ -3,9 +3,11 @@
 
 #include <string>
 
+#include "common/algorithm.hpp"
 #include "common/date_time.hpp"
 #include "common/fixed_string.hpp"
 #include "common/util.hpp"
+#include "containers/vector.hpp"
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
 
@@ -55,6 +57,19 @@ class TrainSystem {
     MemoryRiver<TrainSeat, 0> train_seats_dat;
     BPlusTree<TrainSeatKey, int> train_seat_index;
 
+    struct TrainRef {
+        int train_idx;
+        int station_idx;
+
+        friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
+            if (lhs.train_idx != rhs.train_idx) {
+                return lhs.train_idx < rhs.train_idx;
+            }
+            return lhs.station_idx < rhs.station_idx;
+        }
+    };
+    BPlusTree<Station, TrainRef> train_station_index;
+
     bool get_train(const TrainID& trainID, Train& train, int& idx) {
         if (!train_index.find(trainID, idx)) {
             return false;
@@ -84,7 +99,8 @@ class TrainSystem {
         : trains_dat("trains.dat"),
           train_index("train_index.idx"),
           train_seats_dat("train_seats.dat"),
-          train_seat_index("train_seat.idx") {}
+          train_seat_index("train_seat.idx"),
+          train_station_index("train_station.idx") {}
 
     bool add_train(const TrainID& trainID, int station_num, int seat_num,
                    const std::string& stations_str,
@@ -166,7 +182,7 @@ class TrainSystem {
         if (!get_train(trainID, train, idx)) {
             return false;
         }
-        
+
         if (train.released) {
             return false;
         }
@@ -175,8 +191,12 @@ class TrainSystem {
             for (int i = 0; i < train.station_num - 1; ++i) {
                 train_seat.seats[i] = train.seat_num;
             }
-            train_seats_dat.write(train_seat);
-            train_seat_index.insert({trainID, d}, idx);
+            int seat_idx = train_seats_dat.write(train_seat);
+            train_seat_index.insert({trainID, d}, seat_idx);
+        }
+
+        for (int i = 0; i < train.station_num; i++) {
+            train_station_index.insert(train.stations[i], {idx, i});
         }
 
         train.released = true;
@@ -203,6 +223,81 @@ class TrainSystem {
             get_train_seat(trainID, date, train_seat, seat_idx);
         }
         return true;
+    }
+
+    struct TicketResult {
+        TrainID train_id;
+        Time leave_time;
+        Time arriving_time;
+        int price;
+        int seat;
+    };
+
+    sjtu::vector<TicketResult> query_ticket(
+        const Station& from, const Station& to, const Date& date,
+        const std::string& sorting_policy) {
+        sjtu::vector<TicketResult> results;
+        auto refs = train_station_index.find_all(from);
+        for (const TrainRef& ref : refs) {
+            Train train;
+            trains_dat.read(train, ref.train_idx);
+            int from_idx = ref.station_idx;
+            int to_idx =
+                static_cast<int>(find(train.stations + from_idx + 1,
+                                      train.stations + train.station_num, to) -
+                                 train.stations);
+            if (to_idx == train.station_num) {
+                continue;
+            }
+
+            Date start_date =
+                date -
+                (train.start_time + train.leave_offsets[from_idx]) / 1440;
+            if (!in_range(train.sale_date[0], train.sale_date[1], start_date)) {
+                continue;
+            }
+
+            TrainSeat train_seat;
+            int seat_idx = -1;
+            if (!get_train_seat(train.trainID, start_date, train_seat,
+                                seat_idx)) {
+                continue;
+            }
+
+            Time train_start_time = make_time(start_date, train.start_time);
+            results.push_back(
+                {.train_id = train.trainID,
+                 .leave_time = train_start_time + train.leave_offsets[from_idx],
+                 .arriving_time =
+                     train_start_time + train.arrive_offsets[to_idx],
+                 .price =
+                     train.price_prefix[to_idx] - train.price_prefix[from_idx],
+                 .seat = *min_element(train_seat.seats + from_idx,
+                                      train_seat.seats + to_idx)});
+        }
+
+        if (sorting_policy == "cost") {
+            sort(
+                results.begin(), results.end(),
+                [](const TicketResult& lhs, const TicketResult& rhs) {
+                    if (lhs.price != rhs.price) {
+                        return lhs.price < rhs.price;
+                    }
+                    return lhs.train_id < rhs.train_id;
+                });
+        } else {
+            sort(
+                results.begin(), results.end(),
+                [](const TicketResult& lhs, const TicketResult& rhs) {
+                    Duration lhs_duration = lhs.arriving_time - lhs.leave_time;
+                    Duration rhs_duration = rhs.arriving_time - rhs.leave_time;
+                    if (lhs_duration != rhs_duration) {
+                        return lhs_duration < rhs_duration;
+                    }
+                    return lhs.train_id < rhs.train_id;
+                });
+        }
+        return results;
     }
 };
 

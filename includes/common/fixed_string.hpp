@@ -8,9 +8,7 @@ struct FixedString {
     char data[N];
 
     FixedString() = default;
-
     FixedString(const std::string &str) { assign(str); }
-
     FixedString(const char *str) { assign(str); }
 
     void clear() {

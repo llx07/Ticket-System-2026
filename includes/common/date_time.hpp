@@ -3,14 +3,14 @@
 
 #include <string>
 
-using Date = int;          // 一个特定日期，(06-01 = 0)
-using Time = int;         // 从 06-01 00:00 开始的分钟数
-using Duration = int;     // 持续分钟数
+using Date = int;          // 一个特定日期，(01-01 = 0)
+using Time = int;          // 从 01-01 00:00 开始的分钟数
+using Duration = int;      // 持续分钟数
 using MinuteOfDate = int;  // 一天的某一个时刻
 
 inline int month_dates(int month) {
-    static int dates[] = {30, 31, 31};
-    return dates[month - 6];
+    static int dates[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    return dates[month - 1];
 }
 
 inline std::string two_digits(int value) {
@@ -26,7 +26,7 @@ inline Date parse_date(const std::string& str) {
     const int date = (str[3] - '0') * 10 + (str[4] - '0');
 
     Date result = 0;
-    for (int m = 6; m < month; ++m) {
+    for (int m = 1; m < month; ++m) {
         result += month_dates(m);
     }
     return result + date - 1;
@@ -48,7 +48,7 @@ inline Date get_date(Time time) { return time / 1440; }
 inline MinuteOfDate get_minute_of_date(Time time) { return time % 1440; }
 
 inline std::string format_date(Date date) {
-    int month = 6;
+    int month = 1;
     int d = date + 1;
 
     while (d > month_dates(month)) {

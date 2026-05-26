@@ -11,7 +11,7 @@ namespace sjtu {
  */
 template <typename T>
 class vector {
-private:
+   private:
     T* data_;
     size_t capacity_;
     size_t size_;
@@ -20,10 +20,10 @@ private:
         if (capacity_ == 0) {
             capacity_ = 2;
         } else {
-            capacity_ = capacity_ * 1.5;
+            capacity_ = capacity_ + (capacity_ >> 1);
         }
         T* new_data = static_cast<T*>(operator new(capacity_ * sizeof(T)));
-        for (int i = 0; i < size_; i++) {
+        for (size_t i = 0; i < size_; i++) {
             new (&new_data[i]) T(static_cast<T&&>(data_[i]));
         }
         for (size_t i = 0; i < size_; i++) {
@@ -33,7 +33,7 @@ private:
         data_ = new_data;
     }
 
-public:
+   public:
     /**
      * a type for actions of the elements of a vector, and you should write
      *   a class named const_iterator with same interfaces.
@@ -55,21 +55,20 @@ public:
         // About value_type:
         // https://blog.csdn.net/u014299153/article/details/72419713 About
         // iterator_category: https://en.cppreference.com/w/cpp/iterator
-    public:
+       public:
         using difference_type = std::ptrdiff_t;
         using value_type = T;
         using pointer = T*;
         using reference = T&;
         using iterator_category = std::output_iterator_tag;
 
-    private:
+       private:
         const vector* vector_belong_;
         pointer ptr_;
 
-    public:
+       public:
         iterator(const vector* vector_belong, pointer ptr)
-            : vector_belong_(vector_belong), ptr_(ptr) {
-        }
+            : vector_belong_(vector_belong), ptr_(ptr) {}
         /**
          * return a new iterator which pointer n-next elements
          * as well as operator-
@@ -91,7 +90,7 @@ public:
             if (vector_belong_ != rhs.vector_belong_) {
                 throw invalid_iterator{};
             }
-            return ptr_ - rhs.ptr_;
+            return static_cast<int>(ptr_ - rhs.ptr_);
         }
         iterator& operator+=(const int& n) {
             ptr_ += n;
@@ -119,48 +118,48 @@ public:
             --ptr_;
             return *this;
         }
-        T& operator*() const {
-            return *ptr_;
-        }
+        T& operator*() const { return *ptr_; }
         /**
          * a operator to check whether two iterators are same (pointing to the
          * same memory address).
          */
-        bool operator==(const iterator& rhs) const {
-            return ptr_ == rhs.ptr_;
-        }
+        bool operator==(const iterator& rhs) const { return ptr_ == rhs.ptr_; }
         bool operator==(const const_iterator& rhs) const {
             return ptr_ == rhs.ptr_;
         }
         /**
          * some other operator for iterator.
          */
-        bool operator!=(const iterator& rhs) const {
-            return ptr_ != rhs.ptr_;
-        }
+        bool operator!=(const iterator& rhs) const { return ptr_ != rhs.ptr_; }
         bool operator!=(const const_iterator& rhs) const {
             return ptr_ != rhs.ptr_;
+        }
+
+        auto operator<=>(const iterator& rhs) const {
+            return ptr_ <=> rhs.ptr_;
+        }
+        auto operator<=>(const const_iterator& rhs) const {
+            return ptr_ <=> rhs.ptr_;
         }
     };
     /**
      * has same function as iterator, just for a const object.
      */
     class const_iterator {
-    public:
+       public:
         using difference_type = std::ptrdiff_t;
         using value_type = const T;
         using pointer = const T*;
         using reference = const T&;
         using iterator_category = std::output_iterator_tag;
 
-    private:
+       private:
         const vector* vector_belong_;
         pointer ptr_;
 
-    public:
+       public:
         const_iterator(const vector* vector_belong, pointer ptr)
-            : vector_belong_(vector_belong), ptr_(ptr) {
-        }
+            : vector_belong_(vector_belong), ptr_(ptr) {}
         /**
          * return a new iterator which pointer n-next elements
          * as well as operator-
@@ -210,35 +209,35 @@ public:
             --ptr_;
             return *this;
         }
-        const T& operator*() const {
-            return *ptr_;
-        }
+        const T& operator*() const { return *ptr_; }
         /**
          * a operator to check whether two iterators are same (pointing to the
          * same memory address).
          */
-        bool operator==(const iterator& rhs) const {
-            return ptr_ == rhs.ptr_;
-        }
+        bool operator==(const iterator& rhs) const { return ptr_ == rhs.ptr_; }
         bool operator==(const const_iterator& rhs) const {
             return ptr_ == rhs.ptr_;
         }
         /**
          * some other operator for iterator.
          */
-        bool operator!=(const iterator& rhs) const {
-            return ptr_ != rhs.ptr_;
-        }
+        bool operator!=(const iterator& rhs) const { return ptr_ != rhs.ptr_; }
         bool operator!=(const const_iterator& rhs) const {
             return ptr_ != rhs.ptr_;
+        }
+
+        auto operator<=>(const iterator& rhs) const {
+            return ptr_ <=> rhs.ptr_;
+        }
+        auto operator<=>(const const_iterator& rhs) const {
+            return ptr_ <=> rhs.ptr_;
         }
     };
     /**
      * Constructs
      * At least two: default constructor, copy constructor
      */
-    vector() : data_(nullptr), capacity_(0), size_(0) {
-    }
+    vector() : data_(nullptr), capacity_(0), size_(0) {}
     vector(const vector& other) {
         if (other.size_ == 0) {
             capacity_ = size_ = 0;
@@ -249,7 +248,7 @@ public:
         size_ = other.size_;
 
         data_ = static_cast<T*>(operator new(capacity_ * sizeof(T)));
-        for (int i = 0; i < other.size(); i++) {
+        for (size_t i = 0; i < other.size(); i++) {
             new (&data_[i]) T(other.data_[i]);
         }
     }
@@ -258,7 +257,7 @@ public:
      * Destructor
      */
     ~vector() {
-        for (int i = 0; i < size_; i++) {
+        for (size_t i = 0; i < size_; i++) {
             data_[i].~T();
         }
         operator delete(data_);
@@ -362,40 +361,24 @@ public:
     /**
      * returns an iterator to the beginning.
      */
-    iterator begin() {
-        return iterator{this, data_};
-    }
-    const_iterator begin() const {
-        return const_iterator{this, data_};
-    }
+    iterator begin() { return iterator{this, data_}; }
+    const_iterator begin() const { return const_iterator{this, data_}; }
 
-    const_iterator cbegin() const {
-        return const_iterator{this, data_};
-    }
+    const_iterator cbegin() const { return const_iterator{this, data_}; }
     /**
      * returns an iterator to the end.
      */
-    iterator end() {
-        return iterator{this, data_ + size_};
-    }
-    const_iterator end() const {
-        return const_iterator{this, data_ + size_};
-    }
-    const_iterator cend() const {
-        return const_iterator{this, data_ + size_};
-    }
+    iterator end() { return iterator{this, data_ + size_}; }
+    const_iterator end() const { return const_iterator{this, data_ + size_}; }
+    const_iterator cend() const { return const_iterator{this, data_ + size_}; }
     /**
      * checks whether the container is empty
      */
-    bool empty() const {
-        return size_ == 0;
-    }
+    bool empty() const { return size_ == 0; }
     /**
      * returns the number of elements
      */
-    size_t size() const {
-        return size_;
-    }
+    size_t size() const { return size_; }
     /**
      * clears the contents
      */
