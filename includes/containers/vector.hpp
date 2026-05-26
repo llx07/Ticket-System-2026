@@ -16,13 +16,9 @@ class vector {
     size_t capacity_;
     size_t size_;
 
-    void reallocate() {
-        if (capacity_ == 0) {
-            capacity_ = 2;
-        } else {
-            capacity_ = capacity_ + (capacity_ >> 1);
-        }
-        T* new_data = static_cast<T*>(operator new(capacity_ * sizeof(T)));
+    void reallocate_to(size_t new_capacity) {
+        T* new_data =
+            static_cast<T*>(operator new(new_capacity * sizeof(T)));
         for (size_t i = 0; i < size_; i++) {
             new (&new_data[i]) T(static_cast<T&&>(data_[i]));
         }
@@ -31,6 +27,15 @@ class vector {
         }
         operator delete(data_);
         data_ = new_data;
+        capacity_ = new_capacity;
+    }
+
+    void reallocate() {
+        if (capacity_ == 0) {
+            reallocate_to(2);
+        } else {
+            reallocate_to(capacity_ + (capacity_ >> 1));
+        }
     }
 
    public:
@@ -379,6 +384,15 @@ class vector {
      * returns the number of elements
      */
     size_t size() const { return size_; }
+    /**
+     * reserves storage for at least new_capacity elements
+     */
+    void reserve(size_t new_capacity) {
+        if (new_capacity <= capacity_) {
+            return;
+        }
+        reallocate_to(new_capacity);
+    }
     /**
      * clears the contents
      */
