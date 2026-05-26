@@ -186,7 +186,7 @@ class TicketSystem {
 
         TrainSystem::TicketPlan plan;
         if (!train_system.check_ticket(trainID, parse_date(cmd.arg('d')), from,
-                                       to, plan)) {
+                                       to, num, plan)) {
             return "-1";
         }
 
