@@ -64,7 +64,7 @@ class BPlusTree {
     std::fstream file;
     std::streamoff file_size;
 
-    static constexpr int CACHE_SIZE = 128;
+    static constexpr int CACHE_SIZE = 256;
 
     struct CachePage {
         char data[PAGE_SIZE];
