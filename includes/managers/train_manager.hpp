@@ -1,5 +1,5 @@
-#ifndef TICKET_SYSTEM_TRAIN_SYSTEM_HPP
-#define TICKET_SYSTEM_TRAIN_SYSTEM_HPP
+#ifndef TICKET_SYSTEM_TRAIN_MANAGER_HPP
+#define TICKET_SYSTEM_TRAIN_MANAGER_HPP
 
 #include <string>
 
@@ -11,7 +11,7 @@
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
 
-class TrainSystem {
+class TrainManager {
    private:
     static constexpr int MAX_STATION = 100;
 
@@ -93,7 +93,7 @@ class TrainSystem {
     }
 
    public:
-    TrainSystem()
+    TrainManager()
         : trains_dat("trains.dat"),
           train_index("train_index.idx"),
           train_seats_dat("train_seats.dat"),
@@ -570,4 +570,4 @@ class TrainSystem {
     }
 };
 
-#endif  // TICKET_SYSTEM_TRAIN_SYSTEM_HPP
+#endif  // TICKET_SYSTEM_TRAIN_MANAGER_HPP

@@ -1,5 +1,5 @@
-#ifndef TICKET_SYSTEM_USER_SYSTEM_HPP
-#define TICKET_SYSTEM_USER_SYSTEM_HPP
+#ifndef TICKET_SYSTEM_USER_MANAGER_HPP
+#define TICKET_SYSTEM_USER_MANAGER_HPP
 
 #include "common/optional.hpp"
 #include "common/types.hpp"
@@ -7,7 +7,7 @@
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
 
-class UserSystem {
+class UserManager {
    public:
     struct User {
         Username username;
@@ -31,7 +31,7 @@ class UserSystem {
     }
 
    public:
-    UserSystem() : users_dat("users.dat"), username_index("username.idx") {}
+    UserManager() : users_dat("users.dat"), username_index("username.idx") {}
 
     void clean() {
         users_dat.clean();
@@ -163,4 +163,4 @@ class UserSystem {
     }
 };
 
-#endif  // TICKET_SYSTEM_USER_SYSTEM_HPP
+#endif  // TICKET_SYSTEM_USER_MANAGER_HPP

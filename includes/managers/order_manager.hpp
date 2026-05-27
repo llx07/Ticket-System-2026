@@ -1,12 +1,12 @@
-#ifndef TICKET_SYSTEM_ORDER_SYSTEM_HPP
-#define TICKET_SYSTEM_ORDER_SYSTEM_HPP
+#ifndef TICKET_SYSTEM_ORDER_MANAGER_HPP
+#define TICKET_SYSTEM_ORDER_MANAGER_HPP
 #include "common/date_time.hpp"
 #include "common/types.hpp"
 #include "containers/vector.hpp"
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
 
-class OrderSystem {
+class OrderManager {
    public:
     enum class OrderStatus { SUCCESS, PENDING, REFUNDED };
     struct Order {
@@ -44,7 +44,7 @@ class OrderSystem {
     BPlusTree<PendingKey, int> order_pending_index;
 
    public:
-    OrderSystem()
+    OrderManager()
         : orders_dat("orders.dat"),
           order_username_index("order_username.idx"),
           order_pending_index("order_pending.idx") {}
@@ -81,7 +81,7 @@ class OrderSystem {
         }
         int order_idx = order_idx_obj.key;
         orders_dat.read(refunded_order, order_idx);
-        if (refunded_order.status == OrderSystem::OrderStatus::REFUNDED) {
+        if (refunded_order.status == OrderManager::OrderStatus::REFUNDED) {
             return false;
         }
         auto original_status = refunded_order.status;
@@ -89,7 +89,7 @@ class OrderSystem {
             order_pending_index.erase(
                 {refunded_order.trainID, refunded_order.start_date}, order_idx);
         }
-        refunded_order.status = OrderSystem::OrderStatus::REFUNDED;
+        refunded_order.status = OrderManager::OrderStatus::REFUNDED;
         orders_dat.update(refunded_order, order_idx);
         refunded_order.status = original_status;
         return true;
@@ -108,4 +108,4 @@ class OrderSystem {
         order_pending_index.erase({order.trainID, order.start_date}, order_idx);
     }
 };
-#endif  // TICKET_SYSTEM_ORDER_SYSTEM_HPP
+#endif  // TICKET_SYSTEM_ORDER_MANAGER_HPP

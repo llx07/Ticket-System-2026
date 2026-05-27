@@ -1,5 +1,5 @@
-#ifndef TICKET_SYSTEM_TICKET_SYSTEM_HPP
-#define TICKET_SYSTEM_TICKET_SYSTEM_HPP
+#ifndef TICKET_SYSTEM_EXECUTOR_HPP
+#define TICKET_SYSTEM_EXECUTOR_HPP
 
 #include <iostream>
 #include <string>
@@ -9,41 +9,41 @@
 #include "common/parser.hpp"
 #include "common/types.hpp"
 #include "common/util.hpp"
-#include "system/order_system.hpp"
-#include "system/train_system.hpp"
-#include "system/user_system.hpp"
+#include "managers/order_manager.hpp"
+#include "managers/train_manager.hpp"
+#include "managers/user_manager.hpp"
 
-class TicketSystem {
+class Executor {
    private:
-    UserSystem user_system;
-    TrainSystem train_system;
-    OrderSystem order_system;
+    UserManager user_manager;
+    TrainManager train_manager;
+    OrderManager order_manager;
 
     void print_ok(bool ok) { std::cout << (ok ? "0" : "-1"); }
 
     void handle_add_user(const Command& cmd) {
-        print_ok(user_system.add_user(
+        print_ok(user_manager.add_user(
             cmd.arg('c'), cmd.arg('u'), cmd.arg('p'), cmd.arg('n'),
             cmd.arg('m'), static_cast<char>(to_int(cmd.arg('g')))));
     }
 
     void handle_login(const Command& cmd) {
-        print_ok(user_system.login(cmd.arg('u'), cmd.arg('p')));
+        print_ok(user_manager.login(cmd.arg('u'), cmd.arg('p')));
     }
 
     void handle_logout(const Command& cmd) {
-        print_ok(user_system.logout(cmd.arg('u')));
+        print_ok(user_manager.logout(cmd.arg('u')));
     }
 
-    void print_user_profile(const UserSystem::User& user) {
+    void print_user_profile(const UserManager::User& user) {
         std::cout << user.username.to_string() << ' ' << user.name.to_string()
                   << ' ' << user.mail_addr.to_string() << ' '
                   << to_string(static_cast<int>(user.privilege));
     }
 
     void handle_query_profile(const Command& cmd) {
-        UserSystem::User result;
-        if (!user_system.query_profile(cmd.arg('c'), cmd.arg('u'), result)) {
+        UserManager::User result;
+        if (!user_manager.query_profile(cmd.arg('c'), cmd.arg('u'), result)) {
             std::cout << "-1";
             return;
         }
@@ -61,8 +61,8 @@ class TicketSystem {
         if (cmd.has('m')) mail_addr = cmd.arg('m');
         if (cmd.has('g')) privilege = static_cast<char>(to_int(cmd.arg('g')));
 
-        UserSystem::User result;
-        if (!user_system.modify_profile(cmd.arg('c'), cmd.arg('u'), password,
+        UserManager::User result;
+        if (!user_manager.modify_profile(cmd.arg('c'), cmd.arg('u'), password,
                                         name, mail_addr, privilege, result)) {
             std::cout << "-1";
             return;
@@ -71,22 +71,22 @@ class TicketSystem {
     }
 
     void handle_add_train(const Command& cmd) {
-        print_ok(train_system.add_train(
+        print_ok(train_manager.add_train(
             cmd.arg('i'), to_int(cmd.arg('n')), to_int(cmd.arg('m')),
             cmd.arg('s'), cmd.arg('p'), cmd.arg('x'), cmd.arg('t'),
             cmd.arg('o'), cmd.arg('d'), cmd.arg('y')[0]));
     }
 
     void handle_delete_train(const Command& cmd) {
-        print_ok(train_system.delete_train(cmd.arg('i')));
+        print_ok(train_manager.delete_train(cmd.arg('i')));
     }
 
     void handle_release_train(const Command& cmd) {
-        print_ok(train_system.release_train(cmd.arg('i')));
+        print_ok(train_manager.release_train(cmd.arg('i')));
     }
 
-    void print_train(const TrainSystem::Train& train,
-                     const TrainSystem::TrainSeat& train_seat,
+    void print_train(const TrainManager::Train& train,
+                     const TrainManager::TrainSeat& train_seat,
                      const Date& date) {
         Time start_time = make_time(date, train.start_time);
         std::cout << train.trainID.to_string() << ' ' << train.type;
@@ -113,17 +113,17 @@ class TicketSystem {
     }
 
     void handle_query_train(const Command& cmd) {
-        TrainSystem::Train train;
-        TrainSystem::TrainSeat train_seat;
+        TrainManager::Train train;
+        TrainManager::TrainSeat train_seat;
         Date date = parse_date(cmd.arg('d'));
-        if (!train_system.query_train(cmd.arg('i'), date, train, train_seat)) {
+        if (!train_manager.query_train(cmd.arg('i'), date, train, train_seat)) {
             std::cout << "-1";
             return;
         }
         print_train(train, train_seat, date);
     }
 
-    void print_ticket_result(const TrainSystem::TicketResult& result) {
+    void print_ticket_result(const TrainManager::TicketResult& result) {
         std::cout << result.trainID.to_string() << ' '
                   << result.from.to_string() << ' '
                   << format_time(result.leaving_time) << " -> "
@@ -135,7 +135,7 @@ class TicketSystem {
     void handle_query_ticket(const Command& cmd) {
         Date date = parse_date(cmd.arg('d'));
         const auto& results =
-            train_system.query_ticket(cmd.arg('s'), cmd.arg('t'), date,
+            train_manager.query_ticket(cmd.arg('s'), cmd.arg('t'), date,
                                       cmd.has('p') ? cmd.arg('p') : "time");
         std::cout << to_string(static_cast<int>(results.size()));
         for (const auto& result : results) {
@@ -146,8 +146,8 @@ class TicketSystem {
 
     void handle_query_transfer(const Command& cmd) {
         Date date = parse_date(cmd.arg('d'));
-        TrainSystem::TicketResult first_leg, second_leg;
-        if (!train_system.query_transfer(cmd.arg('s'), cmd.arg('t'), date,
+        TrainManager::TicketResult first_leg, second_leg;
+        if (!train_manager.query_transfer(cmd.arg('s'), cmd.arg('t'), date,
                                          cmd.has('p') ? cmd.arg('p') : "time",
                                          first_leg, second_leg)) {
             std::cout << '0';
@@ -160,7 +160,7 @@ class TicketSystem {
 
     void handle_buy_ticket(const Command& cmd) {
         Username username = cmd.arg('u');
-        if (!user_system.is_online(username)) {
+        if (!user_manager.is_online(username)) {
             std::cout << "-1";
             return;
         }
@@ -170,21 +170,21 @@ class TicketSystem {
         int num = to_int(cmd.arg('n'));
         bool willing_to_queue = cmd.has('q') && cmd.arg('q') == "true";
 
-        TrainSystem::TicketPlan plan;
-        if (!train_system.check_ticket(trainID, parse_date(cmd.arg('d')), from,
+        TrainManager::TicketPlan plan;
+        if (!train_manager.check_ticket(trainID, parse_date(cmd.arg('d')), from,
                                        to, num, plan)) {
             std::cout << "-1";
             return;
         }
 
-        if (!train_system.reserve_seats(trainID, plan.start_date, plan.from_idx,
+        if (!train_manager.reserve_seats(trainID, plan.start_date, plan.from_idx,
                                         plan.to_idx, num)) {
             if (!willing_to_queue) {
                 std::cout << "-1";
                 return;
             }
-            order_system.add_order(
-                username, {.status = OrderSystem::OrderStatus::PENDING,
+            order_manager.add_order(
+                username, {.status = OrderManager::OrderStatus::PENDING,
                            .trainID = trainID,
                            .from = from,
                            .to = to,
@@ -199,8 +199,8 @@ class TicketSystem {
             return;
         }
 
-        order_system.add_order(username,
-                               {.status = OrderSystem::OrderStatus::SUCCESS,
+        order_manager.add_order(username,
+                               {.status = OrderManager::OrderStatus::SUCCESS,
                                 .trainID = trainID,
                                 .from = from,
                                 .to = to,
@@ -216,19 +216,19 @@ class TicketSystem {
 
     void handle_query_order(const Command& cmd) {
         Username username = cmd.arg('u');
-        if (!user_system.is_online(username)) {
+        if (!user_manager.is_online(username)) {
             std::cout << "-1";
             return;
         }
-        const auto orders = order_system.query_orders(username);
+        const auto orders = order_manager.query_orders(username);
         std::cout << to_string(static_cast<int>(orders.size()));
         for (const auto& order : orders) {
             std::cout << "\n[";
-            if (order.status == OrderSystem::OrderStatus::PENDING)
+            if (order.status == OrderManager::OrderStatus::PENDING)
                 std::cout << "pending";
-            else if (order.status == OrderSystem::OrderStatus::SUCCESS)
+            else if (order.status == OrderManager::OrderStatus::SUCCESS)
                 std::cout << "success";
-            else if (order.status == OrderSystem::OrderStatus::REFUNDED)
+            else if (order.status == OrderManager::OrderStatus::REFUNDED)
                 std::cout << "refunded";
             std::cout << "] " << order.trainID.to_string() << ' '
                       << order.from.to_string() << ' '
@@ -241,27 +241,27 @@ class TicketSystem {
 
     void handle_refund_ticket(const Command& cmd) {
         Username username = cmd.arg('u');
-        if (!user_system.is_online(username)) {
+        if (!user_manager.is_online(username)) {
             std::cout << "-1";
             return;
         }
         int nth = cmd.has('n') ? to_int(cmd.arg('n')) : 1;
-        OrderSystem::Order order;
-        if (!order_system.refund_nth_order(username, nth, order)) {
+        OrderManager::Order order;
+        if (!order_manager.refund_nth_order(username, nth, order)) {
             std::cout << "-1";
             return;
         }
-        if (order.status == OrderSystem::OrderStatus::SUCCESS) {
-            train_system.restore_seats(order.trainID, order.start_date,
+        if (order.status == OrderManager::OrderStatus::SUCCESS) {
+            train_manager.restore_seats(order.trainID, order.start_date,
                                        order.from_idx, order.to_idx, order.num);
-            const auto& pending_queue = order_system.get_pending_orders(
+            const auto& pending_queue = order_manager.get_pending_orders(
                 order.trainID, order.start_date);
             for (int order_idx : pending_queue) {
-                order_system.get_order_by_idx(order_idx, order);
-                if (train_system.reserve_seats(order.trainID, order.start_date,
+                order_manager.get_order_by_idx(order_idx, order);
+                if (train_manager.reserve_seats(order.trainID, order.start_date,
                                                order.from_idx, order.to_idx,
                                                order.num)) {
-                    order_system.mark_pending_success(order_idx);
+                    order_manager.mark_pending_success(order_idx);
                 }
             }
         }
@@ -269,9 +269,9 @@ class TicketSystem {
     }
 
     void handle_clean() {
-        user_system.clean();
-        train_system.clean();
-        order_system.clean();
+        user_manager.clean();
+        train_manager.clean();
+        order_manager.clean();
         std::cout << '0';
     }
 
@@ -316,4 +316,4 @@ class TicketSystem {
     }
 };
 
-#endif  // TICKET_SYSTEM_TICKET_SYSTEM_HPP
+#endif  // TICKET_SYSTEM_EXECUTOR_HPP
