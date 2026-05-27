@@ -5,15 +5,30 @@
 #include <string>
 
 template <int N>
-struct FixedString {
-    char data[N];
+class FixedString {
+    static constexpr int HASH_MOD1 = 1000000007;
+    static constexpr int HASH_BASE = 1145141;
 
-    FixedString() = default;
+    char data[N];
+    int hash = 0;
+
+    void update_hash() {
+        long long h = 0;
+        for (int i = 0; i < N; ++i) {
+            unsigned char ch = static_cast<unsigned char>(data[i]);
+            h = (h * HASH_BASE + ch) % HASH_MOD1;
+        }
+        hash = static_cast<int>(h);
+    }
+
+   public:
+    FixedString() { clear(); }
     FixedString(const std::string &str) { assign(str); }
     FixedString(const char *str) { assign(str); }
 
     void clear() {
         for (int i = 0; i < N; ++i) data[i] = 0;
+        update_hash();
     }
 
     void assign(const std::string &str) {
@@ -22,6 +37,7 @@ struct FixedString {
             data[i] = str[i];
         }
         for (; i < N; ++i) data[i] = 0;
+        update_hash();
     }
 
     void assign(const char *str) {
@@ -30,6 +46,7 @@ struct FixedString {
             data[i] = str[i];
         }
         for (; i < N; ++i) data[i] = 0;
+        update_hash();
     }
 
     std::string to_string() const {
@@ -67,6 +84,12 @@ struct FixedString {
     operator std::string() const { return to_string(); }
 
     friend bool operator<(const FixedString &lhs, const FixedString &rhs) {
+        if (lhs.hash != rhs.hash) return lhs.hash < rhs.hash;
+        return lexicographical_compare(lhs, rhs);
+    }
+
+    friend bool lexicographical_compare(const FixedString &lhs,
+                                        const FixedString &rhs) {
         for (int i = 0; i < N; ++i) {
             if (lhs.data[i] != rhs.data[i]) {
                 return lhs.data[i] < rhs.data[i];
@@ -76,6 +99,7 @@ struct FixedString {
     }
 
     friend bool operator==(const FixedString &lhs, const FixedString &rhs) {
+        if (lhs.hash != rhs.hash) return false;
         for (int i = 0; i < N; ++i) {
             if (lhs.data[i] != rhs.data[i]) return false;
         }
@@ -86,8 +110,7 @@ struct FixedString {
         return !(lhs == rhs);
     }
 
-    friend std::ostream &operator<<(std::ostream &os,
-                                    const FixedString &str) {
+    friend std::ostream &operator<<(std::ostream &os, const FixedString &str) {
         for (int i = 0; i < N && str.data[i] != 0; ++i) {
             os << str.data[i];
         }

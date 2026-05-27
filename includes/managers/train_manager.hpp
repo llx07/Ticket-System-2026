@@ -5,6 +5,7 @@
 
 #include "common/algorithm.hpp"
 #include "common/date_time.hpp"
+#include "common/fixed_string.hpp"
 #include "common/types.hpp"
 #include "common/util.hpp"
 #include "containers/utility.hpp"
@@ -359,7 +360,7 @@ class TrainManager {
                      if (lhs.price != rhs.price) {
                          return lhs.price < rhs.price;
                      }
-                     return lhs.trainID < rhs.trainID;
+                     return lexicographical_compare(lhs.trainID, rhs.trainID);
                  });
         } else {
             sort(results.begin(), results.end(),
@@ -371,7 +372,7 @@ class TrainManager {
                      if (lhs_duration != rhs_duration) {
                          return lhs_duration < rhs_duration;
                      }
-                     return lhs.trainID < rhs.trainID;
+                     return lexicographical_compare(lhs.trainID, rhs.trainID);
                  });
         }
         return results;
