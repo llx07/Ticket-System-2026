@@ -7,6 +7,7 @@
 #include "common/date_time.hpp"
 #include "common/types.hpp"
 #include "common/util.hpp"
+#include "containers/utility.hpp"
 #include "containers/vector.hpp"
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
@@ -58,16 +59,20 @@ class TrainManager {
 
     struct TrainRef {
         int train_idx;
-        int station_idx;
+        int from_idx;
+        int to_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
             if (lhs.train_idx != rhs.train_idx) {
                 return lhs.train_idx < rhs.train_idx;
             }
-            return lhs.station_idx < rhs.station_idx;
+            if (lhs.from_idx != rhs.from_idx) {
+                return lhs.from_idx < rhs.from_idx;
+            }
+            return lhs.to_idx < rhs.to_idx;
         }
     };
-    BPlusTree<int, TrainRef> train_station_index;
+    BPlusTree<sjtu::pair<int, int>, TrainRef> train_station_index;
 
     bool get_train(const TrainID& trainID, Train& train, int& idx) {
         if (!train_index.find(trainID, idx)) {
@@ -231,7 +236,11 @@ class TrainManager {
         }
 
         for (int i = 0; i < train.station_num; i++) {
-            train_station_index.insert(train.station_ids[i], {idx, i});
+            for (int j = i + 1; j < train.station_num; j++) {
+                train_station_index.insert({train.station_ids[i],
+                                            train.station_ids[j]},
+                                           {idx, i, j});
+            }
         }
 
         train.released = true;
@@ -289,18 +298,12 @@ class TrainManager {
             return results;
         }
 
-        auto refs = train_station_index.find_all(from_id);
+        auto refs = train_station_index.find_all({from_id, to_id});
         for (const TrainRef& ref : refs) {
             Train train;
             trains_dat.read(train, ref.train_idx);
-            int from_idx = ref.station_idx;
-            int to_idx = static_cast<int>(
-                find(train.station_ids + from_idx + 1,
-                     train.station_ids + train.station_num, to_id) -
-                train.station_ids);
-            if (to_idx == train.station_num) {
-                continue;
-            }
+            int from_idx = ref.from_idx;
+            int to_idx = ref.to_idx;
 
             Date start_date =
                 date -
@@ -365,31 +368,41 @@ class TrainManager {
             return false;
         }
 
-        auto first_refs = train_station_index.find_all(from_id);
-        for (const TrainRef& first_ref : first_refs) {
-            Train first_train;
-            trains_dat.read(first_train, first_ref.train_idx);
-            int first_from_idx = first_ref.station_idx;
-
-            Date first_start_date =
-                date - (first_train.start_time +
-                        first_train.leave_offsets[first_from_idx]) /
-                           1440;
-            if (!in_range(first_train.sale_date[0], first_train.sale_date[1],
-                          first_start_date)) {
+        for (int transfer_station_id = 1;
+             transfer_station_id <= stations_dat.size();
+             ++transfer_station_id) {
+            auto first_refs =
+                train_station_index.find_all({from_id, transfer_station_id});
+            if (first_refs.empty()) {
+                continue;
+            }
+            auto second_refs =
+                train_station_index.find_all({transfer_station_id, to_id});
+            if (second_refs.empty()) {
                 continue;
             }
 
-            Time first_train_start_time =
-                make_time(first_start_date, first_train.start_time);
-            Time first_leaving_time = first_train_start_time +
-                                      first_train.leave_offsets[first_from_idx];
+            Station transfer_station = get_station_name(transfer_station_id);
+            for (const TrainRef& first_ref : first_refs) {
+                Train first_train;
+                trains_dat.read(first_train, first_ref.train_idx);
+                int first_from_idx = first_ref.from_idx;
+                int first_to_idx = first_ref.to_idx;
 
-            for (int first_to_idx = first_from_idx + 1;
-                 first_to_idx < first_train.station_num; ++first_to_idx) {
-                int transfer_station_id = first_train.station_ids[first_to_idx];
-                Station transfer_station =
-                    get_station_name(transfer_station_id);
+                Date first_start_date =
+                    date - (first_train.start_time +
+                            first_train.leave_offsets[first_from_idx]) /
+                               1440;
+                if (!in_range(first_train.sale_date[0],
+                              first_train.sale_date[1], first_start_date)) {
+                    continue;
+                }
+
+                Time first_train_start_time =
+                    make_time(first_start_date, first_train.start_time);
+                Time first_leaving_time =
+                    first_train_start_time +
+                    first_train.leave_offsets[first_from_idx];
                 Time transfer_arriving_time =
                     first_train_start_time +
                     first_train.arrive_offsets[first_to_idx];
@@ -400,11 +413,11 @@ class TrainManager {
 
                 if (has_result) {
                     if (sorting_policy == "cost") {
-                        if (first_price > best_price) {
-                            break;
+                        if (first_price >= best_price) {
+                            continue;
                         }
-                    } else if (first_duration > best_duration) {
-                        break;
+                    } else if (first_duration >= best_duration) {
+                        continue;
                     }
                 }
 
@@ -417,8 +430,6 @@ class TrainManager {
                     .price = first_price,
                     .seat = 0};
 
-                auto second_refs =
-                    train_station_index.find_all(transfer_station_id);
                 for (const TrainRef& second_ref : second_refs) {
                     Train second_train;
                     trains_dat.read(second_train, second_ref.train_idx);
@@ -426,16 +437,8 @@ class TrainManager {
                         continue;
                     }
 
-                    int second_from_idx = second_ref.station_idx;
-                    int second_to_idx = static_cast<int>(
-                        find(
-                            second_train.station_ids + second_from_idx + 1,
-                            second_train.station_ids + second_train.station_num,
-                            to_id) -
-                        second_train.station_ids);
-                    if (second_to_idx == second_train.station_num) {
-                        continue;
-                    }
+                    int second_from_idx = second_ref.from_idx;
+                    int second_to_idx = second_ref.to_idx;
 
                     Duration second_depart_offset =
                         second_train.start_time +
