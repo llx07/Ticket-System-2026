@@ -58,13 +58,18 @@ class TrainManager {
     BPlusTree<Station, int> station_id_index;
 
     struct TrainRef {
-        int train_idx;
+        Date sale_date[2];
+        TrainID trainID;
+        Duration leave_offset;
+        Duration arrive_offset;
+        MinuteOfDate train_start_time;
+        int price;
         int from_idx;
         int to_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
-            if (lhs.train_idx != rhs.train_idx) {
-                return lhs.train_idx < rhs.train_idx;
+            if (lhs.trainID != rhs.trainID) {
+                return lhs.trainID < rhs.trainID;
             }
             if (lhs.from_idx != rhs.from_idx) {
                 return lhs.from_idx < rhs.from_idx;
@@ -239,7 +244,20 @@ class TrainManager {
             for (int j = i + 1; j < train.station_num; j++) {
                 train_station_index.insert({train.station_ids[i],
                                             train.station_ids[j]},
-                                           {idx, i, j});
+                                           {.sale_date = {train.sale_date[0],
+                                                          train.sale_date[1]},
+                                            .trainID = train.trainID,
+                                            .leave_offset =
+                                                train.leave_offsets[i],
+                                            .arrive_offset =
+                                                train.arrive_offsets[j],
+                                            .train_start_time =
+                                                train.start_time,
+                                            .price =
+                                                train.price_prefix[j] -
+                                                train.price_prefix[i],
+                                            .from_idx = i,
+                                            .to_idx = j});
             }
         }
 
@@ -300,29 +318,25 @@ class TrainManager {
 
         auto refs = train_station_index.find_all({from_id, to_id});
         for (const TrainRef& ref : refs) {
-            Train train;
-            trains_dat.read(train, ref.train_idx);
             int from_idx = ref.from_idx;
             int to_idx = ref.to_idx;
 
             Date start_date =
-                date -
-                (train.start_time + train.leave_offsets[from_idx]) / 1440;
-            if (!in_range(train.sale_date[0], train.sale_date[1], start_date)) {
+                date - (ref.train_start_time + ref.leave_offset) / 1440;
+            if (!in_range(ref.sale_date[0], ref.sale_date[1], start_date)) {
                 continue;
             }
 
-            Time train_start_time = make_time(start_date, train.start_time);
-            results.push_back({.trainID = train.trainID,
+            Time train_start_time = make_time(start_date, ref.train_start_time);
+            results.push_back({.trainID = ref.trainID,
                                .from = from,
                                .to = to,
-                               .leaving_time = train_start_time +
-                                               train.leave_offsets[from_idx],
-                               .arriving_time = train_start_time +
-                                                train.arrive_offsets[to_idx],
-                               .price = train.price_prefix[to_idx] -
-                                        train.price_prefix[from_idx],
-                               .seat = query_seat(train.trainID, start_date,
+                               .leaving_time =
+                                   train_start_time + ref.leave_offset,
+                               .arriving_time =
+                                   train_start_time + ref.arrive_offset,
+                               .price = ref.price,
+                               .seat = query_seat(ref.trainID, start_date,
                                                   from_idx, to_idx)});
         }
 
@@ -384,30 +398,25 @@ class TrainManager {
 
             Station transfer_station = get_station_name(transfer_station_id);
             for (const TrainRef& first_ref : first_refs) {
-                Train first_train;
-                trains_dat.read(first_train, first_ref.train_idx);
                 int first_from_idx = first_ref.from_idx;
                 int first_to_idx = first_ref.to_idx;
 
                 Date first_start_date =
-                    date - (first_train.start_time +
-                            first_train.leave_offsets[first_from_idx]) /
+                    date - (first_ref.train_start_time +
+                            first_ref.leave_offset) /
                                1440;
-                if (!in_range(first_train.sale_date[0],
-                              first_train.sale_date[1], first_start_date)) {
+                if (!in_range(first_ref.sale_date[0], first_ref.sale_date[1],
+                              first_start_date)) {
                     continue;
                 }
 
                 Time first_train_start_time =
-                    make_time(first_start_date, first_train.start_time);
+                    make_time(first_start_date, first_ref.train_start_time);
                 Time first_leaving_time =
-                    first_train_start_time +
-                    first_train.leave_offsets[first_from_idx];
+                    first_train_start_time + first_ref.leave_offset;
                 Time transfer_arriving_time =
-                    first_train_start_time +
-                    first_train.arrive_offsets[first_to_idx];
-                int first_price = first_train.price_prefix[first_to_idx] -
-                                  first_train.price_prefix[first_from_idx];
+                    first_train_start_time + first_ref.arrive_offset;
+                int first_price = first_ref.price;
                 Duration first_duration =
                     transfer_arriving_time - first_leaving_time;
 
@@ -422,7 +431,7 @@ class TrainManager {
                 }
 
                 TicketResult cur_first = {
-                    .trainID = first_train.trainID,
+                    .trainID = first_ref.trainID,
                     .from = from,
                     .to = transfer_station,
                     .leaving_time = first_leaving_time,
@@ -431,9 +440,7 @@ class TrainManager {
                     .seat = 0};
 
                 for (const TrainRef& second_ref : second_refs) {
-                    Train second_train;
-                    trains_dat.read(second_train, second_ref.train_idx);
-                    if (second_train.trainID == first_train.trainID) {
+                    if (second_ref.trainID == first_ref.trainID) {
                         continue;
                     }
 
@@ -441,34 +448,31 @@ class TrainManager {
                     int second_to_idx = second_ref.to_idx;
 
                     Duration second_depart_offset =
-                        second_train.start_time +
-                        second_train.leave_offsets[second_from_idx];
+                        second_ref.train_start_time + second_ref.leave_offset;
                     Date second_start_date =
                         (transfer_arriving_time - second_depart_offset + 1439) /
                         1440;
-                    if (second_start_date < second_train.sale_date[0]) {
-                        second_start_date = second_train.sale_date[0];
+                    if (second_start_date < second_ref.sale_date[0]) {
+                        second_start_date = second_ref.sale_date[0];
                     }
-                    if (!in_range(second_train.sale_date[0],
-                                  second_train.sale_date[1],
+                    if (!in_range(second_ref.sale_date[0],
+                                  second_ref.sale_date[1],
                                   second_start_date)) {
                         continue;
                     }
 
                     Time second_train_start_time =
-                        make_time(second_start_date, second_train.start_time);
+                        make_time(second_start_date,
+                                  second_ref.train_start_time);
                     TicketResult cur_second = {
-                        .trainID = second_train.trainID,
+                        .trainID = second_ref.trainID,
                         .from = transfer_station,
                         .to = to,
                         .leaving_time =
-                            second_train_start_time +
-                            second_train.leave_offsets[second_from_idx],
+                            second_train_start_time + second_ref.leave_offset,
                         .arriving_time =
-                            second_train_start_time +
-                            second_train.arrive_offsets[second_to_idx],
-                        .price = second_train.price_prefix[second_to_idx] -
-                                 second_train.price_prefix[second_from_idx],
+                            second_train_start_time + second_ref.arrive_offset,
+                        .price = second_ref.price,
                         .seat = 0};
 
                     Duration cur_duration =
