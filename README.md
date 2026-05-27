@@ -2,77 +2,108 @@
 
 SJTU CS1951 课程大作业
 
-## 概况
+## 项目结构
 
-### 作业安排
+采用 header-only 设计，所有代码都放在 `includes` 目录下，主入口在 `src/main.cpp`。模块划分如下：
 
+```text
+.
+├── includes                                                  
+│   ├── common                                                  
+│   │   ├── algorithm.hpp           # 常用算法库工具，包括内省排序、查找、最值                                       
+│   │   ├── date_time.hpp           # 一个轻量日期库，全部用 int 实现                                      
+│   │   ├── executor.hpp            # 命令执行器，负责执行解析后的命令
+│   │   ├── fixed_string.hpp        # 定长字符串类                                         
+│   │   ├── optional.hpp            # std::optional 的轻量实现                                     
+│   │   ├── parser.hpp              # 命令解析                                   
+│   │   ├── types.hpp               # 自定义类型定义                                  
+│   │   └── util.hpp                # 工具函数                                  
+│   ├── containers                                                
+│   │   ├── exceptions.hpp                                                  
+│   │   ├── list.hpp                # 链表                                
+│   │   ├── map.hpp                 # 红黑树                                
+│   │   ├── unordered_map.hpp       # 哈希表                                          
+│   │   ├── utility.hpp             # pair                                    
+│   │   └── vector.hpp              # 动态数组                                   
+│   ├── managers                                                  
+│   │   ├── order_manager.hpp       # 订单管理器                                           
+│   │   ├── train_manager.hpp       # 车次管理器                                           
+│   │   └── user_manager.hpp        # 用户管理器                                          
+│   └── storage                                                  
+│       ├── b_plus_tree.hpp         # B+ 树                                         
+│       └── memory_river.hpp        # 可持久化对象存储器                                         
+├── src                                                  
+│   ├── main.cpp                    # 主入口
+│   └── test_bpt.cpp                # B+ 树测试入口
+├── tests                           # 单元测试
+├── testcases                       # 本地样例数据
+├── management_system.md
+```
 
-本作业分为两个部分。
+## 模块说明
 
-在第一部分中，需要实现一个基于文件的 B+ 树。
+### `Executor`
 
-在第二部分中，需要实现一个火车票管理系统。此部分要求使用 Git 开发，维持良好的项目管理习惯。此部分的中期检查等检查方式均会通过查看登记的 Git 仓库链接，因此如果想更换仓库的链接请及时联系助教。
+`includes/common/executor.hpp` 负责把解析后的命令分发给对应 manager，并按需求文档输出结果。
 
-### 作业周期
+### `UserManager`
 
-- B+ 树: 2026-04-27（第 9 周周一）~ 2025-05-25（第 13 周周一）
+`includes/managers/user_manager.hpp` 负责用户注册、登录、登出、查询和修改。
 
-## 评分标准
+### `TrainManager`
 
-本作业占本课程总成绩 15%，其中 B+ 树占 7%，管理系统占 8%。
+`includes/managers/train_manager.hpp` 负责车次添加、删除、发布、查询、购票检查和余票维护。
 
-- B+ 树: 7%
-  - OJ 测试（仅题 [3091](https://acm.sjtu.edu.cn/OnlineJudge/problem/3091)，不含压力测试）: 80%
-  - Code Review: 20%
+### `OrderManager`
 
-bonus 另外计算，计入平时分总分，且不超过总分的 1%。
-
-## B+ 树 - 7%
-
-### 作业要求
-
-作业要求实现基于 BPT 的外存管理系统。在本作业中，只允许调用以下头文件中的函数和类：
-
-iostream, string, cstdio, cmath, string, fstream, filesystem
-
-不允许使用这些头文件包含的 STL 容器 (如 `std::vector`) 或算法 (如 `std::sort`)。唯一的例外是，你可以使用 `std::string`。如果需要用到其他与算法、数据结构无关的标准库，请向助教提出请求。
-
-你需要在最后通过 [OJ 测试](https://acm.sjtu.edu.cn/OnlineJudge/problem/3091)。
-
-注意：建议使用类模板以方便后续完成管理系统。
-
-### 负责助教
-
-张博钜 张煊 丁宣铭
-
-## 管理系统 - 8%
-
-见 [管理系统文档](management_system.md)。
-
-数据压缩包下发在群里。
-
-### 负责助教
-顾元熙，卓翔，楼灏，于恩帝
-
-
-## Bonus
-
-见 [Bonus 文档](bonus.md)。
-
-准备自行设计并实现其他 bonus 的同学可以联系助教协商。
-
-## 扣分
-
-请保证自己项目结构的可读性，可以包括优化项目结构、完善 README 的内容、适当的文件树指南等，晦涩难懂的项目可能会加大助教的工作量，也可能会影响你的成绩（B+ 树阶段此条可忽略）。
-
-**如有出现任何抄袭现象按 0 分计，并按照违反学术诚信的操作办法处理。**
+`includes/managers/order_manager.hpp` 负责订单写入、按用户查询、退票和候补队列。
 
 
-### 中期检查
+## 外存结构
 
-由于火车票后端设计难度较大，请同学们 **务必** 在设计好清晰的文件结构以及代码框架后再动手。
-为了督促同学们的完成进度，我们将在 **6月4日（星期四）** 进行一次中期检查，检查内容包含：
-- 仓库代码，要求建好各模块的文件，设计好基本的类（包含数据成员）以及几个基本的函数接口（要求有函数签名）
-- 口头回答对 `query_transfer` 的设计
-中期检查效果不理想的同学可能会被扣除5%以内的分数。
-  
+### `BPlusTree`
+
+`includes/storage/b_plus_tree.hpp` 是通用外存 B+ 树模板，支持：
+
+- `insert(key, value)`
+- `erase(key, value)`
+- `find(key, value)`
+- `find_all(key)`
+- `find_nth(key, n, value)`
+- `clean()`
+
+实现特性：
+
+- 4096 字节页
+- 删除页回收
+- 页级 LRU 缓存
+- 重复 `(key, value)` 插入会被忽略
+
+### `MemoryRiver`
+
+`includes/storage/memory_river.hpp` 是定长对象外存数组，支持：
+
+- `write`
+- `read`
+- `update`
+- `erase`
+- `size`
+- `clean`
+
+实现特性：
+
+- 删除对象通过 free list 复用空间
+
+
+## 持久化文件
+
+程序会在运行目录创建数据文件和索引文件，包括：
+
+- `users.dat`, `username.idx`
+- `trains.dat`, `train_index.idx`
+- `train_seats.dat`, `train_seat.idx`
+- `stations.dat`, `station_id.idx`
+- `train_station.idx`, `reachable_to.idx`, `reachable_from.idx`
+- `orders.dat`, `order_username.idx`, `order_pending.idx`
+
+执行 `clean` 命令会清空所有业务数据和索引。
