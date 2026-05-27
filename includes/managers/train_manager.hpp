@@ -79,6 +79,9 @@ class TrainManager {
     };
     BPlusTree<sjtu::pair<int, int>, TrainRef> train_station_index;
 
+    BPlusTree<int, int> reachable_to_id;
+    BPlusTree<int, int> reachable_from_id;
+
     bool get_train(const TrainID& trainID, Train& train, int& idx) {
         if (!train_index.find(trainID, idx)) {
             return false;
@@ -126,7 +129,9 @@ class TrainManager {
           train_seat_index("train_seat.idx"),
           stations_dat("stations.dat"),
           station_id_index("station_id.idx"),
-          train_station_index("train_station.idx") {}
+          train_station_index("train_station.idx"),
+          reachable_to_id("reachable_to.idx"),
+          reachable_from_id("reachable_from.idx") {}
 
     void clean() {
         trains_dat.clean();
@@ -136,6 +141,8 @@ class TrainManager {
         stations_dat.clean();
         station_id_index.clean();
         train_station_index.clean();
+        reachable_to_id.clean();
+        reachable_from_id.clean();
     }
 
     Station get_station_name(int station_id) {
@@ -242,22 +249,20 @@ class TrainManager {
 
         for (int i = 0; i < train.station_num; i++) {
             for (int j = i + 1; j < train.station_num; j++) {
-                train_station_index.insert({train.station_ids[i],
-                                            train.station_ids[j]},
-                                           {.sale_date = {train.sale_date[0],
-                                                          train.sale_date[1]},
-                                            .trainID = train.trainID,
-                                            .leave_offset =
-                                                train.leave_offsets[i],
-                                            .arrive_offset =
-                                                train.arrive_offsets[j],
-                                            .train_start_time =
-                                                train.start_time,
-                                            .price =
-                                                train.price_prefix[j] -
-                                                train.price_prefix[i],
-                                            .from_idx = i,
-                                            .to_idx = j});
+                train_station_index.insert(
+                    {train.station_ids[i], train.station_ids[j]},
+                    {.sale_date = {train.sale_date[0], train.sale_date[1]},
+                     .trainID = train.trainID,
+                     .leave_offset = train.leave_offsets[i],
+                     .arrive_offset = train.arrive_offsets[j],
+                     .train_start_time = train.start_time,
+                     .price = train.price_prefix[j] - train.price_prefix[i],
+                     .from_idx = i,
+                     .to_idx = j});
+                reachable_to_id.insert(train.station_ids[i],
+                                       train.station_ids[j]);
+                reachable_from_id.insert(train.station_ids[j],
+                                         train.station_ids[i]);
             }
         }
 
@@ -328,16 +333,15 @@ class TrainManager {
             }
 
             Time train_start_time = make_time(start_date, ref.train_start_time);
-            results.push_back({.trainID = ref.trainID,
-                               .from = from,
-                               .to = to,
-                               .leaving_time =
-                                   train_start_time + ref.leave_offset,
-                               .arriving_time =
-                                   train_start_time + ref.arrive_offset,
-                               .price = ref.price,
-                               .seat = query_seat(ref.trainID, start_date,
-                                                  from_idx, to_idx)});
+            results.push_back(
+                {.trainID = ref.trainID,
+                 .from = from,
+                 .to = to,
+                 .leaving_time = train_start_time + ref.leave_offset,
+                 .arriving_time = train_start_time + ref.arrive_offset,
+                 .price = ref.price,
+                 .seat =
+                     query_seat(ref.trainID, start_date, from_idx, to_idx)});
         }
 
         if (sorting_policy == "cost") {
@@ -382,9 +386,23 @@ class TrainManager {
             return false;
         }
 
-        for (int transfer_station_id = 1;
-             transfer_station_id <= stations_dat.size();
-             ++transfer_station_id) {
+        auto reachable_to = reachable_to_id.find_all(from_id);
+        auto reachable_from = reachable_from_id.find_all(to_id);
+        size_t i = 0, j = 0;
+        while (i < reachable_to.size() && j < reachable_from.size()) {
+            int x = reachable_to[i];
+            int y = reachable_from[j];
+            if (x < y) {
+                ++i;
+                continue;
+            }
+            if (y < x) {
+                ++j;
+                continue;
+            }
+
+            int transfer_station_id = x;
+            ++i, ++j;
             auto first_refs =
                 train_station_index.find_all({from_id, transfer_station_id});
             if (first_refs.empty()) {
@@ -401,10 +419,9 @@ class TrainManager {
                 int first_from_idx = first_ref.from_idx;
                 int first_to_idx = first_ref.to_idx;
 
-                Date first_start_date =
-                    date - (first_ref.train_start_time +
-                            first_ref.leave_offset) /
-                               1440;
+                Date first_start_date = date - (first_ref.train_start_time +
+                                                first_ref.leave_offset) /
+                                                   1440;
                 if (!in_range(first_ref.sale_date[0], first_ref.sale_date[1],
                               first_start_date)) {
                     continue;
@@ -456,14 +473,12 @@ class TrainManager {
                         second_start_date = second_ref.sale_date[0];
                     }
                     if (!in_range(second_ref.sale_date[0],
-                                  second_ref.sale_date[1],
-                                  second_start_date)) {
+                                  second_ref.sale_date[1], second_start_date)) {
                         continue;
                     }
 
-                    Time second_train_start_time =
-                        make_time(second_start_date,
-                                  second_ref.train_start_time);
+                    Time second_train_start_time = make_time(
+                        second_start_date, second_ref.train_start_time);
                     TicketResult cur_second = {
                         .trainID = second_ref.trainID,
                         .from = transfer_station,

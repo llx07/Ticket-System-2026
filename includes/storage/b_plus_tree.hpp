@@ -489,7 +489,7 @@ class BPlusTree {
     }
 
     // insert (key, value) in to tree
-    // requirement: (key, value) does not exist
+    // if (key, value) already exists, do nothing
     void insert(const Key &key, const T &value) {
         auto kv_pair = KeyValuePair{key, value};
 
@@ -508,6 +508,12 @@ class BPlusTree {
         int idx = get_leaf_idx(kv_pair, path, path_size);
 
         LeafPage leaf_page = read_page<LeafPage>(idx);
+        for (int i = 0; i < leaf_page.size; i++) {
+            if (leaf_page.data[i] == kv_pair) {
+                return;
+            }
+        }
+
         // Case 1: no overflow
         if (leaf_page.size < LEAF_MAX_ENTRIES) {
             insert_val(leaf_page.data, leaf_page.size, kv_pair);
