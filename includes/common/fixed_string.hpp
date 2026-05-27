@@ -1,6 +1,7 @@
 #ifndef SJTU_FIXED_STRING_HPP
 #define SJTU_FIXED_STRING_HPP
 
+#include <iostream>
 #include <string>
 
 template <int N>
@@ -83,6 +84,14 @@ struct FixedString {
 
     friend bool operator!=(const FixedString &lhs, const FixedString &rhs) {
         return !(lhs == rhs);
+    }
+
+    friend std::ostream &operator<<(std::ostream &os,
+                                    const FixedString &str) {
+        for (int i = 0; i < N && str.data[i] != 0; ++i) {
+            os << str.data[i];
+        }
+        return os;
     }
 };
 

@@ -36,9 +36,8 @@ class Executor {
     }
 
     void print_user_profile(const UserManager::User& user) {
-        std::cout << user.username.to_string() << ' ' << user.name.to_string()
-                  << ' ' << user.mail_addr.to_string() << ' '
-                  << to_string(static_cast<int>(user.privilege));
+        std::cout << user.username << ' ' << user.name << ' ' << user.mail_addr
+                  << ' ' << to_string(static_cast<int>(user.privilege));
     }
 
     void handle_query_profile(const Command& cmd) {
@@ -63,7 +62,7 @@ class Executor {
 
         UserManager::User result;
         if (!user_manager.modify_profile(cmd.arg('c'), cmd.arg('u'), password,
-                                        name, mail_addr, privilege, result)) {
+                                         name, mail_addr, privilege, result)) {
             std::cout << "-1";
             return;
         }
@@ -89,9 +88,9 @@ class Executor {
                      const TrainManager::TrainSeat& train_seat,
                      const Date& date) {
         Time start_time = make_time(date, train.start_time);
-        std::cout << train.trainID.to_string() << ' ' << train.type;
+        std::cout << train.trainID << ' ' << train.type;
         for (int i = 0; i < train.station_num; i++) {
-            std::cout << '\n' << train.stations[i].to_string() << ' ';
+            std::cout << '\n' << train.stations[i] << ' ';
             if (i == 0) {
                 std::cout << "xx-xx xx:xx";
             } else {
@@ -124,11 +123,9 @@ class Executor {
     }
 
     void print_ticket_result(const TrainManager::TicketResult& result) {
-        std::cout << result.trainID.to_string() << ' '
-                  << result.from.to_string() << ' '
-                  << format_time(result.leaving_time) << " -> "
-                  << result.to.to_string() << ' '
-                  << format_time(result.arriving_time) << ' '
+        std::cout << result.trainID << ' ' << result.from << ' '
+                  << format_time(result.leaving_time) << " -> " << result.to
+                  << ' ' << format_time(result.arriving_time) << ' '
                   << to_string(result.price) << ' ' << to_string(result.seat);
     }
 
@@ -136,7 +133,7 @@ class Executor {
         Date date = parse_date(cmd.arg('d'));
         const auto& results =
             train_manager.query_ticket(cmd.arg('s'), cmd.arg('t'), date,
-                                      cmd.has('p') ? cmd.arg('p') : "time");
+                                       cmd.has('p') ? cmd.arg('p') : "time");
         std::cout << to_string(static_cast<int>(results.size()));
         for (const auto& result : results) {
             std::cout << '\n';
@@ -148,8 +145,8 @@ class Executor {
         Date date = parse_date(cmd.arg('d'));
         TrainManager::TicketResult first_leg, second_leg;
         if (!train_manager.query_transfer(cmd.arg('s'), cmd.arg('t'), date,
-                                         cmd.has('p') ? cmd.arg('p') : "time",
-                                         first_leg, second_leg)) {
+                                          cmd.has('p') ? cmd.arg('p') : "time",
+                                          first_leg, second_leg)) {
             std::cout << '0';
             return;
         }
@@ -172,13 +169,13 @@ class Executor {
 
         TrainManager::TicketPlan plan;
         if (!train_manager.check_ticket(trainID, parse_date(cmd.arg('d')), from,
-                                       to, num, plan)) {
+                                        to, num, plan)) {
             std::cout << "-1";
             return;
         }
 
-        if (!train_manager.reserve_seats(trainID, plan.start_date, plan.from_idx,
-                                        plan.to_idx, num)) {
+        if (!train_manager.reserve_seats(trainID, plan.start_date,
+                                         plan.from_idx, plan.to_idx, num)) {
             if (!willing_to_queue) {
                 std::cout << "-1";
                 return;
@@ -200,17 +197,17 @@ class Executor {
         }
 
         order_manager.add_order(username,
-                               {.status = OrderManager::OrderStatus::SUCCESS,
-                                .trainID = trainID,
-                                .from = from,
-                                .to = to,
-                                .from_idx = plan.from_idx,
-                                .to_idx = plan.to_idx,
-                                .start_date = plan.start_date,
-                                .leaving_time = plan.leaving_time,
-                                .arriving_time = plan.arriving_time,
-                                .price = plan.unit_price,
-                                .num = num});
+                                {.status = OrderManager::OrderStatus::SUCCESS,
+                                 .trainID = trainID,
+                                 .from = from,
+                                 .to = to,
+                                 .from_idx = plan.from_idx,
+                                 .to_idx = plan.to_idx,
+                                 .start_date = plan.start_date,
+                                 .leaving_time = plan.leaving_time,
+                                 .arriving_time = plan.arriving_time,
+                                 .price = plan.unit_price,
+                                 .num = num});
         std::cout << to_string(plan.unit_price * num);
     }
 
@@ -230,11 +227,9 @@ class Executor {
                 std::cout << "success";
             else if (order.status == OrderManager::OrderStatus::REFUNDED)
                 std::cout << "refunded";
-            std::cout << "] " << order.trainID.to_string() << ' '
-                      << order.from.to_string() << ' '
-                      << format_time(order.leaving_time) << " -> "
-                      << order.to.to_string() << ' '
-                      << format_time(order.arriving_time) << ' '
+            std::cout << "] " << order.trainID << ' ' << order.from << ' '
+                      << format_time(order.leaving_time) << " -> " << order.to
+                      << ' ' << format_time(order.arriving_time) << ' '
                       << to_string(order.price) << ' ' << to_string(order.num);
         }
     }
@@ -253,14 +248,15 @@ class Executor {
         }
         if (order.status == OrderManager::OrderStatus::SUCCESS) {
             train_manager.restore_seats(order.trainID, order.start_date,
-                                       order.from_idx, order.to_idx, order.num);
+                                        order.from_idx, order.to_idx,
+                                        order.num);
             const auto& pending_queue = order_manager.get_pending_orders(
                 order.trainID, order.start_date);
             for (int order_idx : pending_queue) {
                 order_manager.get_order_by_idx(order_idx, order);
                 if (train_manager.reserve_seats(order.trainID, order.start_date,
-                                               order.from_idx, order.to_idx,
-                                               order.num)) {
+                                                order.from_idx, order.to_idx,
+                                                order.num)) {
                     order_manager.mark_pending_success(order_idx);
                 }
             }
