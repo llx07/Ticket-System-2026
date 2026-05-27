@@ -90,7 +90,9 @@ class Executor {
         Time start_time = make_time(date, train.start_time);
         std::cout << train.trainID << ' ' << train.type;
         for (int i = 0; i < train.station_num; i++) {
-            std::cout << '\n' << train.stations[i] << ' ';
+            std::cout << '\n'
+                      << train_manager.get_station_name(train.station_ids[i])
+                      << ' ';
             if (i == 0) {
                 std::cout << "xx-xx xx:xx";
             } else {

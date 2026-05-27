@@ -1,4 +1,4 @@
 build
 *.log
 *.py
-baseline
+baseline*
