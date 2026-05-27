@@ -55,12 +55,12 @@ class TrainSystem {
     BPlusTree<TrainSeatKey, int> train_seat_index;
 
     struct TrainRef {
-        int trainIDx;
+        int train_idx;
         int station_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
-            if (lhs.trainIDx != rhs.trainIDx) {
-                return lhs.trainIDx < rhs.trainIDx;
+            if (lhs.train_idx != rhs.train_idx) {
+                return lhs.train_idx < rhs.train_idx;
             }
             return lhs.station_idx < rhs.station_idx;
         }
@@ -215,8 +215,8 @@ class TrainSystem {
 
     bool query_train(const TrainID& trainID, const Date& date, Train& train,
                      TrainSeat& train_seat) {
-        int trainIDx = -1;
-        if (!get_train(trainID, train, trainIDx)) {
+        int train_idx = -1;
+        if (!get_train(trainID, train, train_idx)) {
             return false;
         }
         if (!in_range(train.sale_date[0], train.sale_date[1], date)) {
@@ -261,7 +261,7 @@ class TrainSystem {
         auto refs = train_station_index.find_all(from);
         for (const TrainRef& ref : refs) {
             Train train;
-            trains_dat.read(train, ref.trainIDx);
+            trains_dat.read(train, ref.train_idx);
             int from_idx = ref.station_idx;
             int to_idx =
                 static_cast<int>(find(train.stations + from_idx + 1,
@@ -332,7 +332,7 @@ class TrainSystem {
         auto first_refs = train_station_index.find_all(from);
         for (const TrainRef& first_ref : first_refs) {
             Train first_train;
-            trains_dat.read(first_train, first_ref.trainIDx);
+            trains_dat.read(first_train, first_ref.train_idx);
             int first_from_idx = first_ref.station_idx;
 
             Date first_start_date =
@@ -383,7 +383,7 @@ class TrainSystem {
                     train_station_index.find_all(transfer_station);
                 for (const TrainRef& second_ref : second_refs) {
                     Train second_train;
-                    trains_dat.read(second_train, second_ref.trainIDx);
+                    trains_dat.read(second_train, second_ref.train_idx);
                     if (second_train.trainID == first_train.trainID) {
                         continue;
                     }
@@ -498,8 +498,8 @@ class TrainSystem {
                       const Station& from, const Station& to, int num,
                       TicketPlan& out) {
         Train train;
-        int trainIDx = -1;
-        if (!get_train(trainID, train, trainIDx)) {
+        int train_idx = -1;
+        if (!get_train(trainID, train, train_idx)) {
             return false;
         }
         int from_idx = static_cast<int>(
