@@ -59,8 +59,8 @@ class TrainManager {
 
     struct TrainRef {
         int train_idx;
-        short from_idx;
-        short to_idx;
+        int from_idx;
+        int to_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
             if (lhs.train_idx != rhs.train_idx) {
@@ -237,9 +237,9 @@ class TrainManager {
 
         for (int i = 0; i < train.station_num; i++) {
             for (int j = i + 1; j < train.station_num; j++) {
-                train_station_index.insert(
-                    {train.station_ids[i], train.station_ids[j]},
-                    {idx, static_cast<short>(i), static_cast<short>(j)});
+                train_station_index.insert({train.station_ids[i],
+                                            train.station_ids[j]},
+                                           {idx, i, j});
             }
         }
 
@@ -532,8 +532,8 @@ class TrainManager {
         Date start_date;
         Time leaving_time;
         Time arriving_time;
-        short from_idx;
-        short to_idx;
+        int from_idx;
+        int to_idx;
         int unit_price;
     };
     bool check_ticket(const TrainID& trainID, const Date& depart_date,
@@ -548,7 +548,7 @@ class TrainManager {
         if (!get_station_id(from, from_id) || !get_station_id(to, to_id)) {
             return false;
         }
-        auto from_idx = static_cast<short>(
+        int from_idx = static_cast<int>(
             find(train.station_ids, train.station_ids + train.station_num,
                  from_id) -
             train.station_ids);
@@ -558,7 +558,7 @@ class TrainManager {
         if (num > train.seat_num) {
             return false;
         }
-        auto to_idx = static_cast<short>(
+        int to_idx = static_cast<int>(
             find(train.station_ids + from_idx + 1,
                  train.station_ids + train.station_num, to_id) -
             train.station_ids);
