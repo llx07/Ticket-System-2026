@@ -20,12 +20,7 @@ class UserManager {
    private:
     MemoryRiver<User, 0> users_dat;
     BPlusTree<Username, int> username_index;
-
-    struct OnlineInfo {
-        int idx;
-        Privilege privilege;
-    };
-    sjtu::map<Username, OnlineInfo> online;
+    sjtu::map<Username, bool> online;
 
     bool get_user(const Username& username, User& user, int& idx) {
         if (!username_index.find(username, idx)) {
@@ -47,20 +42,23 @@ class UserManager {
     bool is_online(const Username& username) {
         return online.find(username) != online.end();
     }
-
     bool add_user(const Username& cur_username, const Username& username,
                   const Password& password, const Name& name,
                   const MailAddr& mail_addr, Privilege privilege) {
         if (users_dat.size() == 0) {  // first user
             privilege = 10;
         } else {
-            auto it_cur = online.find(cur_username);
-            if (it_cur == online.end() ||
-                it_cur->second.privilege <= privilege) {
+            if (!is_online(cur_username)) {
                 return false;
             }
             int idx = -1;
             if (username_index.find(username, idx)) {
+                return false;
+            }
+
+            User cur_user;
+            get_user(cur_username, cur_user, idx);
+            if (cur_user.privilege <= privilege) {
                 return false;
             }
         }
@@ -88,8 +86,7 @@ class UserManager {
         if (user.password != passsword) {
             return false;
         }
-        online.insert(sjtu::pair<const Username, OnlineInfo>{
-            username, {idx, user.privilege}});
+        online.insert(sjtu::pair<const Username, bool>{username, true});
         return true;
     }
 
@@ -103,20 +100,20 @@ class UserManager {
 
     bool query_profile(const Username& cur_username, const Username& username,
                        User& result) {
-        auto cur_it = online.find(cur_username);
-        if (cur_it == online.end()) {
+        if (!is_online(cur_username)) {
             return false;
         }
-        if (cur_username == username) {
-            users_dat.read(result, cur_it->second.idx);
-        } else {
-            int result_idx = -1;
-            if (!get_user(username, result, result_idx)) {
-                return false;
-            }
+        User cur_user;
+        int cur_idx = -1;
+        if (!get_user(cur_username, cur_user, cur_idx)) {
+            return false;
+        }
+        int result_idx = -1;
+        if (!get_user(username, result, result_idx)) {
+            return false;
         }
 
-        if (!(result.privilege < cur_it->second.privilege ||
+        if (!(result.privilege < cur_user.privilege ||
               cur_username == username)) {
             return false;
         }
@@ -129,24 +126,23 @@ class UserManager {
                         const Optional<Name>& name,
                         const Optional<MailAddr>& mail_addr,
                         Optional<Privilege> privilege, User& result) {
-        auto cur_it = online.find(cur_username);
-        if (cur_it == online.end()) {
+        if (!is_online(cur_username)) {
+            return false;
+        }
+        User cur_user;
+        int cur_idx = -1;
+        if (!get_user(cur_username, cur_user, cur_idx)) {
             return false;
         }
         int result_idx = -1;
-        if (cur_username == username) {
-            result_idx = cur_it->second.idx;
-            users_dat.read(result, result_idx);
-        } else {
-            if (!get_user(username, result, result_idx)) {
-                return false;
-            }
+        if (!get_user(username, result, result_idx)) {
+            return false;
         }
-        if (!(result.privilege < cur_it->second.privilege ||
+        if (!(result.privilege < cur_user.privilege ||
               cur_username == username)) {
             return false;
         }
-        if (privilege && *privilege >= cur_it->second.privilege) {
+        if (privilege && *privilege >= cur_user.privilege) {
             return false;
         }
 
@@ -163,9 +159,6 @@ class UserManager {
             result.privilege = *privilege;
         }
         users_dat.update(result, result_idx);
-        if (cur_username == username && privilege) {
-            cur_it->second.privilege = *privilege;
-        }
         return true;
     }
 };
