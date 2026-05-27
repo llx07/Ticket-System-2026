@@ -15,8 +15,7 @@ int main() {
         if (line.empty()) continue;
 
         Command cmd = parse_command(line);
-        std::cout << '[' << cmd.timestamp << "] " << system.execute(cmd)
-                  << '\n';
+        system.execute(cmd);
 
         if (cmd.name == "exit") break;
     }
