@@ -68,6 +68,15 @@ class TrainManager {
         int to_idx;
 
         friend bool operator<(const TrainRef& lhs, const TrainRef& rhs) {
+            int lhs_arrive_time =
+                lhs.train_start_time + lhs.arrive_offset -
+                (lhs.train_start_time + lhs.leave_offset) / 1440 * 1440;
+            int rhs_arrive_time =
+                rhs.train_start_time + rhs.arrive_offset -
+                (rhs.train_start_time + rhs.leave_offset) / 1440 * 1440;
+            if (lhs_arrive_time != rhs_arrive_time) {
+                return lhs_arrive_time < rhs_arrive_time;
+            }
             if (lhs.trainID != rhs.trainID) {
                 return lhs.trainID < rhs.trainID;
             }
@@ -415,6 +424,7 @@ class TrainManager {
             }
 
             Station transfer_station = get_station_name(transfer_station_id);
+            int best_first_price_so_far = 0x7fffffff;
             for (const TrainRef& first_ref : first_refs) {
                 int first_from_idx = first_ref.from_idx;
                 int first_to_idx = first_ref.to_idx;
@@ -436,6 +446,15 @@ class TrainManager {
                 int first_price = first_ref.price;
                 Duration first_duration =
                     transfer_arriving_time - first_leaving_time;
+
+                if (sorting_policy == "cost" &&
+                    best_first_price_so_far < first_price) {
+                    continue;
+                }
+                if (sorting_policy == "cost" &&
+                    first_price < best_first_price_so_far) {
+                    best_first_price_so_far = first_price;
+                }
 
                 if (has_result) {
                     if (sorting_policy == "cost") {
