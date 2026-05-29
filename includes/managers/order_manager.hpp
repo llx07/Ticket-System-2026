@@ -2,6 +2,7 @@
 #define TICKET_SYSTEM_ORDER_MANAGER_HPP
 #include "common/date_time.hpp"
 #include "common/types.hpp"
+#include "containers/utility.hpp"
 #include "containers/vector.hpp"
 #include "storage/b_plus_tree.hpp"
 #include "storage/memory_river.hpp"
@@ -30,18 +31,7 @@ class OrderManager {
         }
     };
     BPlusTree<Username, OrderIdx> order_username_index;
-
-    struct PendingKey {
-        TrainID trainID;
-        Date date;
-        friend bool operator<(const PendingKey& lhs, const PendingKey& rhs) {
-            if (lhs.trainID != rhs.trainID) {
-                return lhs.trainID < rhs.trainID;
-            }
-            return lhs.date < rhs.date;
-        }
-    };
-    BPlusTree<PendingKey, int> order_pending_index;
+    BPlusTree<sjtu::pair<TrainID, Date>, int> order_pending_index;
 
    public:
     OrderManager()
@@ -95,7 +85,7 @@ class OrderManager {
         return true;
     }
     sjtu::vector<int> get_pending_orders(const TrainID& trainID, Date date) {
-        return order_pending_index.find_all(PendingKey{trainID, date});
+        return order_pending_index.find_all({trainID, date});
     }
     void get_order_by_idx(int order_idx, Order& order) {
         orders_dat.read(order, order_idx);

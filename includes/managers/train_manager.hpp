@@ -37,23 +37,11 @@ class TrainManager {
     struct TrainSeat {
         int seats[MAX_STATION - 1];
     };
-    struct TrainSeatKey {
-        TrainID trainID;
-        Date date;
-
-        friend bool operator<(const TrainSeatKey& lhs,
-                              const TrainSeatKey& rhs) {
-            if (lhs.trainID < rhs.trainID) return true;
-            if (rhs.trainID < lhs.trainID) return false;
-            return lhs.date < rhs.date;
-        }
-    };
-
    private:
     MemoryRiver<Train, 0> trains_dat;
     BPlusTree<TrainID, int> train_index;
     MemoryRiver<TrainSeat, 0> train_seats_dat;
-    BPlusTree<TrainSeatKey, int> train_seat_index;
+    BPlusTree<sjtu::pair<TrainID, Date>, int> train_seat_index;
     MemoryRiver<Station, 0> stations_dat;
     BPlusTree<Station, int> station_id_index;
 
