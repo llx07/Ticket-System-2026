@@ -11,14 +11,14 @@ inline int log2floor(int n) {
 }
 
 template <class T>
-inline void swap(T& a, T& b) {
+void swap(T& a, T& b) {
     T c = b;
     b = a;
     a = c;
 }
 
 template <typename Iterator, typename Comp>
-inline void insertion_sort(Iterator first, Iterator last, Comp comp) {
+void insertion_sort(Iterator first, Iterator last, Comp comp) {
     if (last - first <= 1) {
         return;
     }
@@ -34,7 +34,7 @@ inline void insertion_sort(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator, typename Comp>
-inline void sift_down(Iterator first, int node, int count, Comp comp) {
+void sift_down(Iterator first, int node, int count, Comp comp) {
     while (true) {
         int child = node * 2 + 1;
         if (child >= count) {
@@ -53,7 +53,7 @@ inline void sift_down(Iterator first, int node, int count, Comp comp) {
 }
 
 template <typename Iterator, typename Comp>
-inline void make_heap(Iterator first, Iterator last, Comp comp) {
+void make_heap(Iterator first, Iterator last, Comp comp) {
     auto n = last - first;
     if (n <= 1) {
         return;
@@ -68,7 +68,7 @@ inline void make_heap(Iterator first, Iterator last, Comp comp) {
     }
 }
 template <typename Iterator, typename Comp>
-inline void heap_sort(Iterator first, Iterator last, Comp comp) {
+void heap_sort(Iterator first, Iterator last, Comp comp) {
     auto n = last - first;
     if (n <= 1) {
         return;
@@ -82,7 +82,7 @@ inline void heap_sort(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator, typename Comp>
-inline Iterator partition(Iterator first, Iterator last, Comp comp) {
+Iterator partition(Iterator first, Iterator last, Comp comp) {
     Iterator mid = first + (last - first) / 2;
     Iterator last_minus_one = last - 1;
 
@@ -107,7 +107,7 @@ inline Iterator partition(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator, typename Comp>
-inline void intro_sort(Iterator first, Iterator last, int depth_limit, Comp comp) {
+void intro_sort(Iterator first, Iterator last, int depth_limit, Comp comp) {
     while (last - first > 16) {
         if (depth_limit == 0) {
             heap_sort(first, last, comp);
@@ -121,7 +121,7 @@ inline void intro_sort(Iterator first, Iterator last, int depth_limit, Comp comp
 }
 
 template <typename Iterator, typename Comp>
-inline void sort(Iterator first, Iterator last, Comp comp) {
+void sort(Iterator first, Iterator last, Comp comp) {
     if (last - first <= 1) {
         return;
     }
@@ -130,12 +130,12 @@ inline void sort(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator>
-inline void sort(Iterator first, Iterator last) {
+void sort(Iterator first, Iterator last) {
     sort(first, last, [](const auto& x, const auto& y) { return x < y; });
 }
 
 template <typename Iterator, typename T>
-inline Iterator find(Iterator first, Iterator last, const T& value) {
+Iterator find(Iterator first, Iterator last, const T& value) {
     for (Iterator it = first; it != last; ++it) {
         if (*it == value) {
             return it;
@@ -145,7 +145,7 @@ inline Iterator find(Iterator first, Iterator last, const T& value) {
 }
 
 template <typename Iterator, typename Comp>
-inline Iterator min_element(Iterator first, Iterator last, Comp comp) {
+Iterator min_element(Iterator first, Iterator last, Comp comp) {
     if (first == last) {
         return last;
     }
@@ -160,13 +160,13 @@ inline Iterator min_element(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator>
-inline Iterator min_element(Iterator first, Iterator last) {
+Iterator min_element(Iterator first, Iterator last) {
     return min_element(first, last,
                        [](const auto& x, const auto& y) { return x < y; });
 }
 
 template <typename Iterator, typename Comp>
-inline Iterator max_element(Iterator first, Iterator last, Comp comp) {
+Iterator max_element(Iterator first, Iterator last, Comp comp) {
     if (first == last) {
         return last;
     }
@@ -181,13 +181,13 @@ inline Iterator max_element(Iterator first, Iterator last, Comp comp) {
 }
 
 template <typename Iterator>
-inline Iterator max_element(Iterator first, Iterator last) {
+Iterator max_element(Iterator first, Iterator last) {
     return max_element(first, last,
                        [](const auto& x, const auto& y) { return x < y; });
 }
 
 template <typename Iterator>
-inline void reverse(Iterator first, Iterator last) {
+void reverse(Iterator first, Iterator last) {
     while (first < last) {
         --last;
         if (!(first < last)) {
