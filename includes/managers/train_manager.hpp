@@ -412,7 +412,6 @@ class TrainManager {
             }
 
             Station transfer_station = get_station_name(transfer_station_id);
-            int best_first_price_so_far = 0x7fffffff;
             for (const TrainRef& first_ref : first_refs) {
                 int first_from_idx = first_ref.from_idx;
                 int first_to_idx = first_ref.to_idx;
@@ -432,27 +431,6 @@ class TrainManager {
                 Time transfer_arriving_time =
                     first_train_start_time + first_ref.arrive_offset;
                 int first_price = first_ref.price;
-                Duration first_duration =
-                    transfer_arriving_time - first_leaving_time;
-
-                if (sorting_policy == "cost" &&
-                    best_first_price_so_far < first_price) {
-                    continue;
-                }
-                if (sorting_policy == "cost" &&
-                    first_price < best_first_price_so_far) {
-                    best_first_price_so_far = first_price;
-                }
-
-                if (has_result) {
-                    if (sorting_policy == "cost") {
-                        if (first_price >= best_price) {
-                            continue;
-                        }
-                    } else if (first_duration >= best_duration) {
-                        continue;
-                    }
-                }
 
                 TicketResult cur_first = {
                     .trainID = first_ref.trainID,
