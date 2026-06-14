@@ -570,6 +570,9 @@ class TrainManager {
         if (!get_train(trainID, train, train_idx)) {
             return false;
         }
+        if (!train.released) {
+            return false;
+        }
         int from_id = -1, to_id = -1;
         if (!get_station_id(from, from_id) || !get_station_id(to, to_id)) {
             return false;
